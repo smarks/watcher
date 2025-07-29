@@ -11,14 +11,18 @@ import json
 import os
 import time
 import random
+import logging
 from datetime import datetime
 from difflib import unified_diff
+from typing import Optional
+from sms_notifier import SMSNotifier, create_notifier_from_env
 
 
 class URLWatcher:
-    def __init__(self, storage_file="url_cache.json"):
+    def __init__(self, storage_file="url_cache.json", sms_notifier: Optional[SMSNotifier] = None):
         self.storage_file = storage_file
         self.cache = self._load_cache()
+        self.sms_notifier = sms_notifier
     
     def _load_cache(self):
         """Load previous URL content cache from file"""
@@ -80,6 +84,14 @@ class URLWatcher:
         
         # Content has changed - generate difference
         diff = self._generate_diff(previous_content, current_content, url)
+        
+        # Send SMS notification if configured
+        if self.sms_notifier and self.sms_notifier.is_configured():
+            try:
+                self.sms_notifier.send_notification(url, diff)
+                logging.info(f"SMS notification sent for URL: {url}")
+            except Exception as e:
+                logging.error(f"Failed to send SMS notification: {e}")
         
         # Update cache with new content
         self.cache[url] = {
@@ -151,15 +163,31 @@ class URLWatcher:
 
 
 def main():
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
-        print("Usage: python url_watcher.py <URL> [--continuous]")
+    if len(sys.argv) < 2 or len(sys.argv) > 4:
+        print("Usage: python url_watcher.py <URL> [--continuous] [--sms]")
         print("  Single check: python url_watcher.py <URL>")
         print("  Continuous:   python url_watcher.py <URL> --continuous")
+        print("  With SMS:     python url_watcher.py <URL> --sms")
+        print("  Both:         python url_watcher.py <URL> --continuous --sms")
+        print("\nFor SMS notifications, set these environment variables:")
+        print("  SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
         sys.exit(1)
     
     url = sys.argv[1]
-    continuous = len(sys.argv) == 3 and sys.argv[2] == "--continuous"
-    watcher = URLWatcher()
+    continuous = "--continuous" in sys.argv[2:]
+    enable_sms = "--sms" in sys.argv[2:]
+    
+    # Initialize SMS notifier if requested
+    sms_notifier = None
+    if enable_sms:
+        sms_notifier = create_notifier_from_env()
+        if not sms_notifier.is_configured():
+            print("⚠️  SMS notifications requested but not properly configured")
+            print("Set SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY environment variables")
+        else:
+            print("📱 SMS notifications enabled")
+    
+    watcher = URLWatcher(sms_notifier=sms_notifier)
     
     try:
         if continuous:
