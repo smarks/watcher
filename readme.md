@@ -19,9 +19,9 @@ A simple website watcher mostly written by Claude but under the careful directio
   python -m http.server 8080 &
 
   To stop a background server:
-  # Find the process ID
+  * Find the process ID
   ps aux | grep "http.server"
-  # Kill it using the PID
+  * Kill it using the PID
   kill <PID>
 
   Or use pkill:
