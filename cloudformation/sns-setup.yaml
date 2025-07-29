@@ -66,7 +66,6 @@ Outputs:
   SecretAccessKey:
     Description: 'Secret Access Key for the IAM user (store securely)'
     Value: !GetAtt URLWatcherAccessKey.SecretAccessKey
-    NoEcho: true
   
   PhoneNumber:
     Description: 'Configured phone number for SMS notifications'
