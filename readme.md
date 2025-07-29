@@ -28,6 +28,7 @@ python url_watcher.py https://example.com
 
 # Continuous monitoring
 python url_watcher.py https://example.com --continuous
+ 
 
 # With SMS notifications
 python url_watcher.py https://example.com --sms --continuous
