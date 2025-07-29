@@ -71,7 +71,7 @@ aws cloudformation deploy \
     --stack-name "$STACK_NAME" \
     --parameter-overrides \
         PhoneNumber="$PHONE_NUMBER" \
-    --capabilities CAPABILITY_IAM \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset
 
 if [[ $? -eq 0 ]]; then

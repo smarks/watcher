@@ -4,8 +4,8 @@
 # Copy this file and update with your actual values
 
 # Export AWS credentials and SNS topic ARN
-export AWS_ACCESS_KEY_ID="your_access_key_here"
-export AWS_SECRET_ACCESS_KEY="your_secret_key_here"
+export AWS_ACCESS_KEY_ID="AKIAVVIGI22T6AMH4FDN"
+export AWS_SECRET_ACCESS_KEY="ZlTusZh3/pZXTcV0blN4eD4MeHEHaEIsR/qgTai"
 export AWS_REGION="us-east-1"
 export SNS_TOPIC_ARN="arn:aws:sns:us-east-1:123456789012:url-watcher-notifications"
 
