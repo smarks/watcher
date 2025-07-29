@@ -1,4 +1,9 @@
-Usage:
+# Watcher 
+
+A simple website watcher mostly written by Claude but under the careful direction of Spencer
+
+
+**Usage:**
 
   - Single check: python url_watcher.py <URL>
   - Continuous: python url_watcher.py <URL> --continuous
