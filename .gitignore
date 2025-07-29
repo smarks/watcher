@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.idea/
+.vscode/
+*.egg-info/
+url_cache.json
+test_cache*.json
