@@ -14,7 +14,7 @@ jobs:
         fetch-depth: 0  # Need full history to compare with main branch
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
@@ -102,7 +102,7 @@ jobs:
           });
 
     - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
