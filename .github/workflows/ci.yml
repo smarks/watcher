@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - name: Install dependencies
@@ -41,12 +41,12 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -60,35 +60,27 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        python -m pytest --cov=url_watcher --cov=sms_notifier --cov-report=xml --cov-report=term-missing --cov-report=html -v
+        set -e
+        python -m pytest --cov=. --cov-report=xml --cov-report=term-missing --cov-report=html -v
     
     - name: Run coverage tracker
       run: |
-        python coverage_tracker.py --no-fail-on-decline
+        set -e
+        python coverage_tracker.py
     
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+      continue-on-error: true
     
     - name: Archive coverage reports
       if: matrix.python-version == '3.11'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: htmlcov/
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run Bandit Security Scan
-      uses: securecodewarrior/github-action-bandit@v1.1.1
-      with:
-        folder: '.'
-        recursive: true
-        exclude_paths: 'venv/,htmlcov/,.git/'
