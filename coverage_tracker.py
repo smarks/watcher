@@ -148,7 +148,9 @@ class CoverageTracker:
                     messages.append(f"❌ {filename}: {baseline_cov}% → {current_cov}% (-{diff}%)")
                     is_acceptable = False
                 else:
-                    messages.append(f"⚠️  {filename}: {baseline_cov}% → {current_cov}% (-{diff}%) [within tolerance]")
+                    messages.append(
+                        f"⚠️  {filename}: {baseline_cov}% → {current_cov}% (-{diff}%) [within tolerance]"
+                    )
             elif current_cov > baseline_cov:
                 diff = current_cov - baseline_cov
                 messages.append(f"✅ {filename}: {baseline_cov}% → {current_cov}% (+{diff}%)")
