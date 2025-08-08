@@ -25,8 +25,9 @@ jobs:
 
     - name: Get main branch coverage baseline
       run: |
+        set -e
         git checkout main
-        python -m pytest --cov=url_watcher --cov=sms_notifier --cov-report=term-missing --quiet > main_coverage.txt || true
+        python -m pytest --cov=. --cov-report=term-missing --quiet > main_coverage.txt
         git checkout ${{ github.head_ref }}
         
         # Extract coverage percentage from main branch
@@ -36,7 +37,8 @@ jobs:
 
     - name: Run current branch tests with coverage
       run: |
-        python -m pytest --cov=url_watcher --cov=sms_notifier --cov-report=xml --cov-report=term-missing -v > current_coverage.txt
+        set -e
+        python -m pytest --cov=. --cov-report=xml --cov-report=term-missing -v > current_coverage.txt
         
         # Extract current coverage
         CURRENT_COVERAGE=$(grep "TOTAL" current_coverage.txt | grep -o '[0-9]*%' | tr -d '%' || echo "0")
@@ -45,6 +47,7 @@ jobs:
 
     - name: Check coverage regression
       run: |
+        set -e
         echo "Comparing coverage: Main=$MAIN_COVERAGE% vs Current=$CURRENT_COVERAGE%"
         
         if [ "$CURRENT_COVERAGE" -lt "$MAIN_COVERAGE" ]; then
@@ -107,4 +110,4 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: pr-coverage
-        fail_ci_if_error: false
+        fail_ci_if_error: true

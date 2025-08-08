@@ -28,11 +28,13 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=url_watcher --cov=sms_notifier --cov-report=xml --cov-report=term-missing -v
+        set -e
+        pytest --cov=. --cov-report=xml --cov-report=term-missing -v
 
     - name: Check coverage regression
       run: |
-        python coverage_tracker.py --no-fail-on-decline
+        set -e
+        python coverage_tracker.py
 
     - name: Upload coverage reports to Codecov
       if: matrix.python-version == '3.11'
@@ -41,4 +43,4 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
-        fail_ci_if_error: false
+        fail_ci_if_error: true
