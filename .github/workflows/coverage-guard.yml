@@ -1,0 +1,110 @@
+name: Coverage Guard
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  coverage-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history to compare with main branch
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Get main branch coverage baseline
+      run: |
+        git checkout main
+        python -m pytest --cov=url_watcher --cov=sms_notifier --cov-report=term-missing --quiet > main_coverage.txt || true
+        git checkout ${{ github.head_ref }}
+        
+        # Extract coverage percentage from main branch
+        MAIN_COVERAGE=$(grep "TOTAL" main_coverage.txt | grep -o '[0-9]*%' | tr -d '%' || echo "0")
+        echo "MAIN_COVERAGE=$MAIN_COVERAGE" >> $GITHUB_ENV
+        echo "Main branch coverage: $MAIN_COVERAGE%"
+
+    - name: Run current branch tests with coverage
+      run: |
+        python -m pytest --cov=url_watcher --cov=sms_notifier --cov-report=xml --cov-report=term-missing -v > current_coverage.txt
+        
+        # Extract current coverage
+        CURRENT_COVERAGE=$(grep "TOTAL" current_coverage.txt | grep -o '[0-9]*%' | tr -d '%' || echo "0")
+        echo "CURRENT_COVERAGE=$CURRENT_COVERAGE" >> $GITHUB_ENV
+        echo "Current branch coverage: $CURRENT_COVERAGE%"
+
+    - name: Check coverage regression
+      run: |
+        echo "Comparing coverage: Main=$MAIN_COVERAGE% vs Current=$CURRENT_COVERAGE%"
+        
+        if [ "$CURRENT_COVERAGE" -lt "$MAIN_COVERAGE" ]; then
+          DIFF=$((MAIN_COVERAGE - CURRENT_COVERAGE))
+          echo "❌ Coverage regression detected! Coverage dropped by $DIFF% (from $MAIN_COVERAGE% to $CURRENT_COVERAGE%)"
+          echo "::error::Coverage regression: $MAIN_COVERAGE% → $CURRENT_COVERAGE% (-$DIFF%)"
+          exit 1
+        elif [ "$CURRENT_COVERAGE" -gt "$MAIN_COVERAGE" ]; then
+          DIFF=$((CURRENT_COVERAGE - MAIN_COVERAGE))
+          echo "✅ Coverage improved by $DIFF% (from $MAIN_COVERAGE% to $CURRENT_COVERAGE%)"
+        else
+          echo "📊 Coverage maintained at $CURRENT_COVERAGE%"
+        fi
+
+    - name: Comment PR with coverage results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const mainCoverage = process.env.MAIN_COVERAGE;
+          const currentCoverage = process.env.CURRENT_COVERAGE;
+          const diff = currentCoverage - mainCoverage;
+          
+          let emoji, status, message;
+          if (diff > 0) {
+            emoji = "✅";
+            status = "improved";
+            message = `Coverage ${status} by ${diff}%`;
+          } else if (diff < 0) {
+            emoji = "⚠️";
+            status = "declined";
+            message = `Coverage ${status} by ${Math.abs(diff)}%`;
+          } else {
+            emoji = "📊";
+            status = "maintained";
+            message = `Coverage ${status}`;
+          }
+          
+          const body = `## ${emoji} Coverage Report
+          
+          | Branch | Coverage |
+          |--------|----------|
+          | main | ${mainCoverage}% |
+          | ${context.payload.pull_request.head.ref} | ${currentCoverage}% |
+          
+          **${message}** (${mainCoverage}% → ${currentCoverage}%)
+          
+          ${diff < 0 ? '⚠️ **Warning**: Coverage regression detected!' : ''}`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: pr-coverage
+        fail_ci_if_error: false
