@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -28,17 +28,20 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=url_watcher --cov=sms_notifier --cov-report=xml --cov-report=term-missing -v
+        set -e
+        pytest --cov=. --cov-report=xml --cov-report=term-missing -v
 
     - name: Check coverage regression
       run: |
-        python coverage_tracker.py --no-fail-on-decline
+        set -e
+        python coverage_tracker.py
 
     - name: Upload coverage reports to Codecov
       if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+      continue-on-error: true
