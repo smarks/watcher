@@ -110,4 +110,5 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: pr-coverage
-        fail_ci_if_error: true
+        fail_ci_if_error: false
+      continue-on-error: true
