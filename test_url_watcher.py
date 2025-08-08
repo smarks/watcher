@@ -7,7 +7,7 @@ import unittest
 import tempfile
 import os
 import json
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, mock_open, MagicMock, Mock
 import requests
 from url_watcher import URLWatcher
 
@@ -229,6 +229,228 @@ Line 5"""
         self.assertIn("-Line 4", diff)
         self.assertIn("+New Line 4", diff)
         self.assertIn("+Line 5", diff)
+
+    @patch('time.sleep')
+    @patch('builtins.print')
+    @patch('requests.get')
+    def test_watch_continuously_keyboard_interrupt(self, mock_get, mock_print, mock_sleep):
+        """Test watch_continuously stops on KeyboardInterrupt"""
+        mock_response = Mock()
+        mock_response.text = "Content"
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+        
+        # Simulate KeyboardInterrupt after first iteration
+        mock_sleep.side_effect = KeyboardInterrupt()
+        
+        self.watcher.watch_continuously(self.test_url, min_interval=1, max_interval=2)
+        
+        # Should handle KeyboardInterrupt gracefully
+        mock_print.assert_any_call("\n\nStopping continuous monitoring.")
+
+    @patch('time.sleep')
+    @patch('builtins.print')
+    @patch('requests.get')
+    def test_watch_continuously_with_changes(self, mock_get, mock_print, mock_sleep):
+        """Test watch_continuously detects changes"""
+        # Setup responses - first call returns initial content, second returns changed content
+        initial_response = Mock()
+        initial_response.text = "Initial content"
+        initial_response.raise_for_status.return_value = None
+        
+        changed_response = Mock()
+        changed_response.text = "Changed content"
+        changed_response.raise_for_status.return_value = None
+        
+        mock_get.side_effect = [initial_response, changed_response]
+        
+        # Simulate KeyboardInterrupt after second iteration
+        def sleep_side_effect(seconds):
+            if mock_get.call_count >= 2:
+                raise KeyboardInterrupt()
+        mock_sleep.side_effect = sleep_side_effect
+        
+        self.watcher.watch_continuously(self.test_url, min_interval=1, max_interval=1)
+        
+        # Should detect changes
+        mock_print.assert_any_call("✅ Content has CHANGED!")
+
+    @patch('time.sleep')
+    @patch('builtins.print')
+    @patch('requests.get')
+    def test_watch_continuously_handles_exceptions(self, mock_get, mock_print, mock_sleep):
+        """Test watch_continuously handles request exceptions"""
+        # First call succeeds, second raises exception
+        initial_response = Mock()
+        initial_response.text = "Content"
+        initial_response.raise_for_status.return_value = None
+        
+        mock_get.side_effect = [initial_response, Exception("Network error")]
+        
+        # Simulate KeyboardInterrupt after handling exception
+        def sleep_side_effect(seconds):
+            if mock_get.call_count >= 2:
+                raise KeyboardInterrupt()
+        mock_sleep.side_effect = sleep_side_effect
+        
+        self.watcher.watch_continuously(self.test_url, min_interval=1, max_interval=1)
+        
+        # Should handle exception gracefully
+        mock_print.assert_any_call("Error during check: Network error")
+
+
+class TestMainCLI(unittest.TestCase):
+    """Test cases for main CLI function"""
+    
+    def setUp(self):
+        self.test_cache_file = "test_cache_cli.json"
+    
+    def tearDown(self):
+        if os.path.exists(self.test_cache_file):
+            os.remove(self.test_cache_file)
+
+    @patch('sys.argv', ['url_watcher.py'])
+    @patch('builtins.print')
+    def test_main_no_arguments(self, mock_print):
+        """Test main with no arguments shows usage"""
+        from url_watcher import main
+        
+        with self.assertRaises(SystemExit) as cm:
+            main()
+        
+        self.assertEqual(cm.exception.code, 1)
+        mock_print.assert_any_call("Usage: python url_watcher.py <URL> [--continuous] [--sms]")
+
+    @patch('sys.argv', ['url_watcher.py', 'url', 'extra', 'args', 'too', 'many'])
+    @patch('builtins.print')  
+    def test_main_too_many_arguments(self, mock_print):
+        """Test main with too many arguments shows usage"""
+        from url_watcher import main
+        
+        with self.assertRaises(SystemExit) as cm:
+            main()
+        
+        self.assertEqual(cm.exception.code, 1)
+        mock_print.assert_any_call("Usage: python url_watcher.py <URL> [--continuous] [--sms]")
+
+    @patch('sys.argv', ['url_watcher.py', 'http://example.com'])
+    @patch('requests.get')
+    @patch('builtins.print')
+    def test_main_single_check_no_change(self, mock_print, mock_get):
+        """Test main single check with no changes"""
+        mock_response = Mock()
+        mock_response.text = "Content"
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+        
+        from url_watcher import main
+        
+        main()
+        
+        mock_print.assert_any_call("❌ No changes detected")
+
+    @patch('sys.argv', ['url_watcher.py', 'http://example.com'])
+    @patch('requests.get')
+    @patch('builtins.print')
+    def test_main_single_check_with_change(self, mock_print, mock_get):
+        """Test main single check with changes"""
+        # Simulate cache already exists with different content
+        cache_data = {
+            'http://example.com': {
+                'content_hash': 'old_hash',
+                'last_modified': '2023-01-01 00:00:00'
+            }
+        }
+        with open(self.test_cache_file, 'w') as f:
+            json.dump(cache_data, f)
+        
+        mock_response = Mock()
+        mock_response.text = "New content"
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+        
+        from url_watcher import main
+        
+        # Patch URLWatcher to use our test cache file
+        with patch('url_watcher.URLWatcher') as mock_watcher_class:
+            mock_watcher = Mock()
+            mock_watcher.check_url.return_value = (True, "Some diff")
+            mock_watcher_class.return_value = mock_watcher
+            
+            main()
+            
+            mock_print.assert_any_call("✅ Content has CHANGED!")
+
+    @patch('sys.argv', ['url_watcher.py', 'http://example.com', '--continuous'])
+    @patch('builtins.print')
+    def test_main_continuous_mode(self, mock_print):
+        """Test main in continuous mode"""
+        from url_watcher import main
+        
+        with patch('url_watcher.URLWatcher') as mock_watcher_class:
+            mock_watcher = Mock()
+            mock_watcher_class.return_value = mock_watcher
+            
+            main()
+            
+            mock_watcher.watch_continuously.assert_called_once_with('http://example.com')
+
+    @patch('sys.argv', ['url_watcher.py', 'http://example.com', '--sms'])
+    @patch('builtins.print')
+    def test_main_with_sms_not_configured(self, mock_print):
+        """Test main with SMS but not configured"""
+        from url_watcher import main
+        
+        with patch('url_watcher.create_notifier_from_env') as mock_create_notifier:
+            mock_notifier = Mock()
+            mock_notifier.is_configured.return_value = False
+            mock_create_notifier.return_value = mock_notifier
+            
+            with patch('url_watcher.URLWatcher') as mock_watcher_class:
+                mock_watcher = Mock()
+                mock_watcher.check_url.return_value = (False, "")
+                mock_watcher_class.return_value = mock_watcher
+                
+                main()
+                
+                mock_print.assert_any_call("⚠️  SMS notifications requested but not properly configured")
+
+    @patch('sys.argv', ['url_watcher.py', 'http://example.com', '--sms'])
+    @patch('builtins.print')
+    def test_main_with_sms_configured(self, mock_print):
+        """Test main with SMS properly configured"""
+        from url_watcher import main
+        
+        with patch('url_watcher.create_notifier_from_env') as mock_create_notifier:
+            mock_notifier = Mock()
+            mock_notifier.is_configured.return_value = True
+            mock_create_notifier.return_value = mock_notifier
+            
+            with patch('url_watcher.URLWatcher') as mock_watcher_class:
+                mock_watcher = Mock()
+                mock_watcher.check_url.return_value = (False, "")
+                mock_watcher_class.return_value = mock_watcher
+                
+                main()
+                
+                mock_print.assert_any_call("📱 SMS notifications enabled")
+
+    @patch('sys.argv', ['url_watcher.py', 'http://example.com'])
+    @patch('builtins.print')
+    def test_main_handles_exceptions(self, mock_print):
+        """Test main handles exceptions and exits with error"""
+        from url_watcher import main
+        
+        with patch('url_watcher.URLWatcher') as mock_watcher_class:
+            mock_watcher = Mock()
+            mock_watcher.check_url.side_effect = Exception("Test error")
+            mock_watcher_class.return_value = mock_watcher
+            
+            with self.assertRaises(SystemExit) as cm:
+                main()
+            
+            self.assertEqual(cm.exception.code, 1)
+            mock_print.assert_any_call("Error: Test error")
 
 
 if __name__ == '__main__':

@@ -298,6 +298,54 @@ class TestURLWatcherSMSIntegration(unittest.TestCase):
             self.assertTrue(changed)
             mock_log.assert_called()
 
+    @patch('boto3.client')
+    def test_send_notification_generic_exception(self, mock_boto_client):
+        """Test generic exception handling in send_notification"""
+        # Setup mock to raise generic exception (not ClientError)
+        mock_sns_client = Mock()
+        mock_sns_client.publish.side_effect = ValueError("Some generic error")
+        mock_boto_client.return_value = mock_sns_client
+        
+        notifier = SMSNotifier("fake-topic-arn")
+        
+        with patch('logging.error') as mock_log:
+            result = notifier.send_notification("http://example.com", "Some changes")
+            
+            self.assertFalse(result)
+            mock_log.assert_called_with("Unexpected error sending SMS: Some generic error")
+
+    def test_test_notification_not_configured(self):
+        """Test test_notification when not configured"""
+        notifier = SMSNotifier()  # No topic_arn, not configured
+        
+        result = notifier.test_notification()
+        
+        self.assertEqual(result, {
+            'success': False,
+            'error': 'SMS notifications not configured',
+            'details': {
+                'sns_client': True,  # SNS client gets created by default
+                'topic_arn': False
+            }
+        })
+
+    @patch('boto3.client')
+    def test_test_notification_generic_exception(self, mock_boto_client):
+        """Test generic exception handling in test_notification"""
+        # Setup mock to raise generic exception (not ClientError)
+        mock_sns_client = Mock()
+        mock_sns_client.publish.side_effect = RuntimeError("Some generic error")
+        mock_boto_client.return_value = mock_sns_client
+        
+        notifier = SMSNotifier("fake-topic-arn")
+        
+        result = notifier.test_notification()
+        
+        self.assertEqual(result, {
+            'success': False,
+            'error': 'Unexpected error: Some generic error'
+        })
+
 
 if __name__ == '__main__':
     # Set up logging for tests
