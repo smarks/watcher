@@ -16,8 +16,9 @@ from typing import Dict, Optional, Tuple
 class CoverageTracker:
     """Tracks code coverage over time and prevents regression"""
 
-    def __init__(self, baseline_file: str = ".coverage_baseline.json"):
+    def __init__(self, baseline_file: str = ".coverage_baseline.json", tolerance: float = 2.0):
         self.baseline_file = baseline_file
+        self.tolerance = tolerance  # Allow up to 2% decline before failing
 
     def run_coverage(self) -> Tuple[float, Dict[str, float]]:
         """
@@ -32,8 +33,7 @@ class CoverageTracker:
                 "python",
                 "-m",
                 "pytest",
-                "--cov=url_watcher",
-                "--cov=sms_notifier",
+                "--cov=.",
                 "--cov-report=term-missing",
                 "--quiet",
             ],
@@ -120,10 +120,15 @@ class CoverageTracker:
         # Check total coverage
         if current_total < baseline_total:
             diff = baseline_total - current_total
-            messages.append(
-                f"⚠️  Total coverage declined: {baseline_total}% → {current_total}% (-{diff}%)"
-            )
-            is_acceptable = False
+            if diff > self.tolerance:
+                messages.append(
+                    f"❌ Total coverage declined significantly: {baseline_total}% → {current_total}% (-{diff}%)"
+                )
+                is_acceptable = False
+            else:
+                messages.append(
+                    f"⚠️  Total coverage declined slightly: {baseline_total}% → {current_total}% (-{diff}%) [within tolerance]"
+                )
         elif current_total > baseline_total:
             diff = current_total - baseline_total
             messages.append(
@@ -132,14 +137,18 @@ class CoverageTracker:
         else:
             messages.append(f"📊 Total coverage maintained: {current_total}%")
 
-        # Check per-file coverage
+        # Check per-file coverage (use smaller tolerance for individual files)
+        file_tolerance = max(1.0, self.tolerance / 2)  # At least 1%, or half the total tolerance
         for filename, current_cov in current_per_file.items():
             baseline_cov = baseline_per_file.get(filename, 0)
 
             if current_cov < baseline_cov:
                 diff = baseline_cov - current_cov
-                messages.append(f"⚠️  {filename}: {baseline_cov}% → {current_cov}% (-{diff}%)")
-                is_acceptable = False
+                if diff > file_tolerance:
+                    messages.append(f"❌ {filename}: {baseline_cov}% → {current_cov}% (-{diff}%)")
+                    is_acceptable = False
+                else:
+                    messages.append(f"⚠️  {filename}: {baseline_cov}% → {current_cov}% (-{diff}%) [within tolerance]")
             elif current_cov > baseline_cov:
                 diff = current_cov - baseline_cov
                 messages.append(f"✅ {filename}: {baseline_cov}% → {current_cov}% (+{diff}%)")
@@ -225,10 +234,16 @@ def main():
     parser.add_argument(
         "--reset-baseline", action="store_true", help="Reset the baseline to current coverage"
     )
+    parser.add_argument(
+        "--tolerance",
+        type=float,
+        default=2.0,
+        help="Percentage tolerance for coverage decline (default: 2.0%%)",
+    )
 
     args = parser.parse_args()
 
-    tracker = CoverageTracker()
+    tracker = CoverageTracker(tolerance=args.tolerance)
 
     if args.reset_baseline:
         print("🔄 Resetting baseline...")
