@@ -53,6 +53,20 @@ The coverage tracker maintains a baseline in `.coverage_baseline.json` and will:
 - ⚠️  Warn and fail if coverage declines
 - 📝 Update the baseline when coverage improves
 
+## CI/CD
+
+**GitHub Actions workflows:**
+- **CI Pipeline**: Runs tests across Python 3.9-3.12, with linting and security scans
+- **Coverage Guard**: Prevents coverage regression on pull requests
+- **Automated Testing**: Triggers on pushes to main/fiddling branches
+
+**Features:**
+- 🔍 Multi-version Python testing
+- 📊 Coverage regression protection
+- 🛡️ Security scanning with Bandit
+- 🎨 Code formatting with Black
+- 📈 Coverage reports uploaded to Codecov
+
 
 ⏺ To start the webserver:
   python -m http.server 8080
