@@ -9,3 +9,7 @@ __pycache__/
 *.egg-info/
 url_cache.json
 test_cache*.json
+venv/
+.coverage*
+htmlcov/
+.coverage_baseline.json
