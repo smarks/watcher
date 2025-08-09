@@ -7,6 +7,10 @@ on:
 jobs:
   coverage-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     
     steps:
     - uses: actions/checkout@v4
@@ -23,86 +27,105 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Get main branch coverage baseline
+    - name: Set up baseline from main branch
       run: |
         set -e
         git checkout main
-        python -m pytest --cov=. --cov-report=term-missing --quiet > main_coverage.txt
+        python coverage_tracker.py --reset-baseline
         git checkout ${{ github.head_ref }}
-        
-        # Extract coverage percentage from main branch
-        MAIN_COVERAGE=$(grep "TOTAL" main_coverage.txt | grep -o '[0-9]*%' | tr -d '%' || echo "0")
-        echo "MAIN_COVERAGE=$MAIN_COVERAGE" >> $GITHUB_ENV
-        echo "Main branch coverage: $MAIN_COVERAGE%"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Run current branch tests with coverage
+    - name: Run tests and check coverage regression
       run: |
         set -e
-        python -m pytest --cov=. --cov-report=xml --cov-report=term-missing -v > current_coverage.txt
-        
-        # Extract current coverage
-        CURRENT_COVERAGE=$(grep "TOTAL" current_coverage.txt | grep -o '[0-9]*%' | tr -d '%' || echo "0")
-        echo "CURRENT_COVERAGE=$CURRENT_COVERAGE" >> $GITHUB_ENV
-        echo "Current branch coverage: $CURRENT_COVERAGE%"
+        python -m pytest --cov=. --cov-report=xml --cov-report=term-missing -v
+        python coverage_tracker.py
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Check coverage regression
+    - name: Extract coverage data for PR comment
+      id: coverage
+      if: github.event_name == 'pull_request'
       run: |
-        set -e
-        echo "Comparing coverage: Main=$MAIN_COVERAGE% vs Current=$CURRENT_COVERAGE%"
-        
-        if [ "$CURRENT_COVERAGE" -lt "$MAIN_COVERAGE" ]; then
-          DIFF=$((MAIN_COVERAGE - CURRENT_COVERAGE))
-          echo "❌ Coverage regression detected! Coverage dropped by $DIFF% (from $MAIN_COVERAGE% to $CURRENT_COVERAGE%)"
-          echo "::error::Coverage regression: $MAIN_COVERAGE% → $CURRENT_COVERAGE% (-$DIFF%)"
-          exit 1
-        elif [ "$CURRENT_COVERAGE" -gt "$MAIN_COVERAGE" ]; then
-          DIFF=$((CURRENT_COVERAGE - MAIN_COVERAGE))
-          echo "✅ Coverage improved by $DIFF% (from $MAIN_COVERAGE% to $CURRENT_COVERAGE%)"
+        # Read baseline data
+        if [ -f .coverage_baseline.json ]; then
+          MAIN_COVERAGE=$(python -c "import json; data=json.load(open('.coverage_baseline.json')); print(f\"{data['total_coverage']:.1f}\")")
         else
-          echo "📊 Coverage maintained at $CURRENT_COVERAGE%"
+          MAIN_COVERAGE="unknown"
         fi
+        
+        # Get current coverage from pytest output
+        CURRENT_COVERAGE=$(python -c "
+        import subprocess
+        result = subprocess.run(['python', '-m', 'pytest', '--cov=.', '--cov-report=term-missing', '--quiet'], capture_output=True, text=True)
+        import re
+        match = re.search(r'TOTAL.*?(\d+)%', result.stdout)
+        print(match.group(1) if match else '0')
+        ")
+        
+        echo "MAIN_COVERAGE=$MAIN_COVERAGE" >> $GITHUB_OUTPUT
+        echo "CURRENT_COVERAGE=$CURRENT_COVERAGE" >> $GITHUB_OUTPUT
 
     - name: Comment PR with coverage results
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
+      if: github.event_name == 'pull_request' && steps.coverage.outputs.MAIN_COVERAGE != 'unknown'
+      continue-on-error: true
+      uses: actions/github-script@v7
       with:
         script: |
-          const mainCoverage = process.env.MAIN_COVERAGE;
-          const currentCoverage = process.env.CURRENT_COVERAGE;
-          const diff = currentCoverage - mainCoverage;
-          
-          let emoji, status, message;
-          if (diff > 0) {
-            emoji = "✅";
-            status = "improved";
-            message = `Coverage ${status} by ${diff}%`;
-          } else if (diff < 0) {
-            emoji = "⚠️";
-            status = "declined";
-            message = `Coverage ${status} by ${Math.abs(diff)}%`;
-          } else {
-            emoji = "📊";
-            status = "maintained";
-            message = `Coverage ${status}`;
+          try {
+            const mainCoverage = '${{ steps.coverage.outputs.MAIN_COVERAGE }}';
+            const currentCoverage = '${{ steps.coverage.outputs.CURRENT_COVERAGE }}';
+            const diff = parseFloat(currentCoverage) - parseFloat(mainCoverage);
+            
+            console.log(`Coverage data: main=${mainCoverage}%, current=${currentCoverage}%, diff=${diff.toFixed(1)}%`);
+            
+            let emoji, status, message;
+            if (diff > 2) {
+              emoji = "✅";
+              status = "improved significantly";
+              message = `Coverage ${status} by ${diff.toFixed(1)}%`;
+            } else if (diff > 0) {
+              emoji = "✅";
+              status = "improved";
+              message = `Coverage ${status} by ${diff.toFixed(1)}%`;
+            } else if (diff >= -2) {
+              emoji = "📊";
+              status = "maintained";
+              message = `Coverage ${status} (${diff.toFixed(1)}% change, within tolerance)`;
+            } else {
+              emoji = "⚠️";
+              status = "declined significantly";
+              message = `Coverage ${status} by ${Math.abs(diff).toFixed(1)}%`;
+            }
+            
+            const body = `## ${emoji} Coverage Report
+            
+| Branch | Coverage |
+|--------|----------|
+| main | ${mainCoverage}% |
+| ${context.payload.pull_request.head.ref} | ${currentCoverage}% |
+
+**${message}** (${mainCoverage}% → ${currentCoverage}%)
+
+${diff < -2 ? '❌ **Significant regression detected!** This exceeds the 2% tolerance.' : ''}${diff >= -2 && diff < 0 ? '✅ **Within tolerance** - small coverage changes are acceptable.' : ''}`;
+            
+            console.log(`Attempting to comment on PR #${context.payload.pull_request.number}`);
+            
+            const result = await github.rest.issues.createComment({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+            
+            console.log(`Comment created successfully: ${result.data.html_url}`);
+            
+          } catch (error) {
+            console.error('Error creating PR comment:', error);
+            console.error('Context payload:', JSON.stringify(context.payload, null, 2));
+            // Don't fail the workflow if commenting fails
           }
-          
-          const body = `## ${emoji} Coverage Report
-          
-          | Branch | Coverage |
-          |--------|----------|
-          | main | ${mainCoverage}% |
-          | ${context.payload.pull_request.head.ref} | ${currentCoverage}% |
-          
-          **${message}** (${mainCoverage}% → ${currentCoverage}%)
-          
-          ${diff < 0 ? '⚠️ **Warning**: Coverage regression detected!' : ''}`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: body
-          });
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
