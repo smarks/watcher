@@ -9,6 +9,7 @@ import os
 import sys
 import subprocess
 import re
+import requests
 from datetime import datetime
 from typing import Dict, Optional, Tuple
 
@@ -19,6 +20,9 @@ class CoverageTracker:
     def __init__(self, baseline_file: str = ".coverage_baseline.json", tolerance: float = 2.0):
         self.baseline_file = baseline_file
         self.tolerance = tolerance  # Allow up to 2% decline before failing
+        self.github_token = os.environ.get("GITHUB_TOKEN")
+        self.github_repo = os.environ.get("GITHUB_REPOSITORY")  # format: owner/repo
+        self.is_github_actions = os.environ.get("GITHUB_ACTIONS") == "true"
 
     def run_coverage(self) -> Tuple[float, Dict[str, float]]:
         """
@@ -80,8 +84,96 @@ class CoverageTracker:
 
         return per_file
 
+    def download_baseline_from_github(self) -> bool:
+        """
+        Download the latest coverage baseline from GitHub artifacts
+        Returns True if successfully downloaded, False otherwise
+        """
+        if not self.is_github_actions or not self.github_token or not self.github_repo:
+            return False
+
+        try:
+            # Get the latest successful workflow run for the main branch
+            url = f"https://api.github.com/repos/{self.github_repo}/actions/runs"
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json",
+            }
+
+            params = {
+                "branch": "main",
+                "status": "completed",
+                "conclusion": "success",
+                "per_page": 10,
+            }
+
+            response = requests.get(url, headers=headers, params=params)
+            if response.status_code != 200:
+                print(f"⚠️  Could not fetch workflow runs: {response.status_code}")
+                return False
+
+            runs = response.json().get("workflow_runs", [])
+
+            # Look for runs that might have coverage artifacts
+            for run in runs:
+                artifacts_url = f"https://api.github.com/repos/{self.github_repo}/actions/runs/{run['id']}/artifacts"
+                artifacts_response = requests.get(artifacts_url, headers=headers)
+
+                if artifacts_response.status_code != 200:
+                    continue
+
+                artifacts = artifacts_response.json().get("artifacts", [])
+
+                # Look for coverage baseline artifact
+                for artifact in artifacts:
+                    if artifact["name"] == "coverage-baseline":
+                        return self._download_artifact(artifact["archive_download_url"], headers)
+
+            print("ℹ️  No previous coverage baseline found in GitHub artifacts")
+            return False
+
+        except Exception as e:
+            print(f"⚠️  Error downloading baseline from GitHub: {e}")
+            return False
+
+    def _download_artifact(self, download_url: str, headers: dict) -> bool:
+        """Download and extract the coverage baseline artifact"""
+        import zipfile
+        import tempfile
+
+        try:
+            # Download the artifact zip
+            response = requests.get(download_url, headers=headers)
+            if response.status_code != 200:
+                return False
+
+            # Extract the baseline file from the zip
+            with tempfile.NamedTemporaryFile(delete=False) as temp_zip:
+                temp_zip.write(response.content)
+                temp_zip_path = temp_zip.name
+
+            with zipfile.ZipFile(temp_zip_path, "r") as zip_file:
+                if self.baseline_file in zip_file.namelist():
+                    zip_file.extract(self.baseline_file, ".")
+                    print("✅ Downloaded coverage baseline from GitHub artifacts")
+                    return True
+
+            return False
+
+        except Exception as e:
+            print(f"⚠️  Error extracting baseline artifact: {e}")
+            return False
+        finally:
+            if "temp_zip_path" in locals():
+                os.unlink(temp_zip_path)
+
     def load_baseline(self) -> Optional[Dict]:
         """Load the baseline coverage data"""
+        # If running in GitHub Actions and no local baseline, try downloading
+        if not os.path.exists(self.baseline_file) and self.is_github_actions:
+            print("🔄 Attempting to download coverage baseline from GitHub artifacts...")
+            self.download_baseline_from_github()
+
         if not os.path.exists(self.baseline_file):
             return None
 
