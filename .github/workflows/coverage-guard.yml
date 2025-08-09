@@ -44,7 +44,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract coverage data for PR comment
+    - name: Extract coverage data and create summary
       id: coverage
       if: github.event_name == 'pull_request'
       run: |
@@ -66,6 +66,43 @@ jobs:
         
         echo "MAIN_COVERAGE=$MAIN_COVERAGE" >> $GITHUB_OUTPUT
         echo "CURRENT_COVERAGE=$CURRENT_COVERAGE" >> $GITHUB_OUTPUT
+        
+        # Create GitHub Job Summary using Python for comparisons
+        if [ "$MAIN_COVERAGE" != "unknown" ]; then
+          python -c "
+import os
+
+main_cov = float('$MAIN_COVERAGE')
+current_cov = float('$CURRENT_COVERAGE')
+diff = current_cov - main_cov
+
+with open(os.environ['GITHUB_STEP_SUMMARY'], 'w') as f:
+    f.write('# 📊 Coverage Report\n\n')
+    f.write('| Branch | Coverage | Change |\n')
+    f.write('|--------|----------|--------|\n')
+    f.write(f'| main | {main_cov}% | baseline |\n')
+    f.write(f'| ${{ github.head_ref }} | {current_cov}% | {diff:+.1f}% |\n\n')
+    
+    if diff > 2:
+        f.write(f'✅ **Coverage improved significantly** by {diff:.1f}%\n')
+    elif diff > 0:
+        f.write(f'✅ **Coverage improved** by {diff:.1f}%\n')
+    elif diff >= -2:
+        f.write(f'📊 **Coverage maintained** ({diff:+.1f}% change, within 2% tolerance)\n\n')
+        f.write('> ✅ **Within tolerance** - small coverage changes are acceptable.\n')
+    else:
+        f.write(f'⚠️ **Coverage declined significantly** by {abs(diff):.1f}%\n\n')
+        f.write('> ❌ **Significant regression detected!** This exceeds the 2% tolerance.\n')
+"
+        else
+          echo "# 📊 Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **No baseline available** - this may be the first run." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Current Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ${CURRENT_COVERAGE}% |" >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Comment PR with coverage results
       if: github.event_name == 'pull_request' && steps.coverage.outputs.MAIN_COVERAGE != 'unknown'
