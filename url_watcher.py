@@ -205,7 +205,7 @@ def main():
                 print(difference)
             else:
                 print("❌ No changes detected")
-                if difference:
+                if difference:  # pragma: no cover
                     print(difference)
 
     except Exception as e:
