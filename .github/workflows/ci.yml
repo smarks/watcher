@@ -70,6 +70,47 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
+    - name: Generate coverage summary
+      if: matrix.python-version == '3.11'
+      run: |
+        # Create coverage summary for job summary
+        if [ -f .coverage_baseline.json ]; then
+          python -c "
+import json
+import subprocess
+import re
+import os
+
+# Get current coverage
+result = subprocess.run(['python', '-m', 'pytest', '--cov=.', '--cov-report=term-missing', '--quiet'], capture_output=True, text=True)
+match = re.search(r'TOTAL.*?(\d+)%', result.stdout)
+current_cov = float(match.group(1)) if match else 0
+
+# Get baseline
+try:
+    with open('.coverage_baseline.json') as f:
+        baseline = json.load(f)
+    baseline_cov = baseline['total_coverage']
+except:
+    baseline_cov = current_cov
+
+diff = current_cov - baseline_cov
+
+with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+    f.write('\n## 📊 Coverage Summary\n\n')
+    f.write(f'- **Current Coverage**: {current_cov}%\n')
+    f.write(f'- **Baseline Coverage**: {baseline_cov}%\n')
+    f.write(f'- **Change**: {diff:+.1f}%\n\n')
+    
+    if diff >= 0:
+        f.write('✅ Coverage maintained or improved\n')
+    elif diff >= -2:
+        f.write('📊 Coverage within acceptable tolerance (2%)\n')
+    else:
+        f.write('⚠️ Significant coverage decline detected\n')
+"
+        fi
+    
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.11'
       uses: codecov/codecov-action@v4

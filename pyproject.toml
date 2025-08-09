@@ -29,7 +29,8 @@ omit = [
     "*/venv/*", 
     "*/test_*",
     "coverage_tracker.py",
-    "integration_tests.py"
+    "integration_tests.py",
+    "generate_coverage_badge.py"
 ]
 
 [tool.coverage.report]
