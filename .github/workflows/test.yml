@@ -35,6 +35,8 @@ jobs:
       run: |
         set -e
         python coverage_tracker.py
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload coverage reports to Codecov
       if: matrix.python-version == '3.11'
@@ -45,3 +47,11 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
       continue-on-error: true
+    
+    - name: Upload coverage baseline
+      if: matrix.python-version == '3.11' && github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-baseline
+        path: .coverage_baseline.json
+        retention-days: 30
