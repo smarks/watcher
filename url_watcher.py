@@ -19,6 +19,7 @@ from typing import Optional
 # Support both AWS SNS and Twilio SMS notifications
 try:
     from sms_notifier import SMSNotifier, create_notifier_from_env as create_aws_notifier
+
     AWS_AVAILABLE = True
 except ImportError:
     AWS_AVAILABLE = False
@@ -27,6 +28,7 @@ except ImportError:
 
 try:
     from twilio_notifier import TwilioNotifier, create_notifier_from_env as create_twilio_notifier
+
     TWILIO_AVAILABLE = True
 except ImportError:
     TWILIO_AVAILABLE = False
@@ -36,15 +38,15 @@ except ImportError:
 
 class URLWatcher:
     def __init__(
-        self, 
-        storage_file="url_cache.json", 
+        self,
+        storage_file="url_cache.json",
         sms_notifier=None,  # Can be SMSNotifier (AWS) or TwilioNotifier
-        notification_service="auto"  # "auto", "aws", "twilio", or "none"
+        notification_service="auto",  # "auto", "aws", "twilio", or "none"
     ):
         self.storage_file = storage_file
         self.cache = self._load_cache()
         self.notification_service = notification_service
-        
+
         # Auto-detect notification service if not explicitly provided
         if sms_notifier is None and notification_service == "auto":
             self.sms_notifier = self._auto_detect_notification_service()
@@ -70,22 +72,22 @@ class URLWatcher:
             os.environ.get("TWILIO_FROM_PHONE"),
             os.environ.get("TWILIO_TO_PHONE"),
         ]
-        
+
         if TWILIO_AVAILABLE and all(twilio_vars):
             print("📱 Auto-detected: Using Twilio SMS notifications")
             return create_twilio_notifier()
-        
+
         # Fallback to AWS SNS if available
         aws_vars = [
             os.environ.get("SNS_TOPIC_ARN"),
             os.environ.get("AWS_ACCESS_KEY_ID"),
             os.environ.get("AWS_SECRET_ACCESS_KEY"),
         ]
-        
+
         if AWS_AVAILABLE and all(aws_vars):
             print("☁️  Auto-detected: Using AWS SNS notifications")
             return create_aws_notifier()
-        
+
         # No notification service detected
         print("📵 No SMS service configured (set TWILIO_* or AWS_* environment variables)")
         return None
@@ -228,7 +230,9 @@ def main():
         print("  With SMS:     python url_watcher.py <URL> --sms")
         print("  Both:         python url_watcher.py <URL> --continuous --sms")
         print("\nFor SMS notifications, set these environment variables:")
-        print("  Twilio (preferred): TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_PHONE, TWILIO_TO_PHONE")
+        print(
+            "  Twilio (preferred): TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_PHONE, TWILIO_TO_PHONE"
+        )
         print("  AWS SNS (legacy):   SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
         sys.exit(1)
 
