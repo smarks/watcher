@@ -15,14 +15,43 @@ import logging
 from datetime import datetime
 from difflib import unified_diff
 from typing import Optional
-from sms_notifier import SMSNotifier, create_notifier_from_env
+
+# Support both AWS SNS and Twilio SMS notifications
+try:
+    from sms_notifier import SMSNotifier, create_notifier_from_env as create_aws_notifier
+
+    AWS_AVAILABLE = True
+except ImportError:
+    AWS_AVAILABLE = False
+    SMSNotifier = None
+    create_aws_notifier = None
+
+try:
+    from twilio_notifier import TwilioNotifier, create_notifier_from_env as create_twilio_notifier
+
+    TWILIO_AVAILABLE = True
+except ImportError:
+    TWILIO_AVAILABLE = False
+    TwilioNotifier = None
+    create_twilio_notifier = None
 
 
 class URLWatcher:
-    def __init__(self, storage_file="url_cache.json", sms_notifier: Optional[SMSNotifier] = None):
+    def __init__(
+        self,
+        storage_file="url_cache.json",
+        sms_notifier=None,  # Can be SMSNotifier (AWS) or TwilioNotifier
+        notification_service="auto",  # "auto", "aws", "twilio", or "none"
+    ):
         self.storage_file = storage_file
         self.cache = self._load_cache()
-        self.sms_notifier = sms_notifier
+        self.notification_service = notification_service
+
+        # Auto-detect notification service if not explicitly provided
+        if sms_notifier is None and notification_service == "auto":
+            self.sms_notifier = self._auto_detect_notification_service()
+        else:
+            self.sms_notifier = sms_notifier
 
     def _load_cache(self):
         """Load previous URL content cache from file"""
@@ -33,6 +62,35 @@ class URLWatcher:
             except (json.JSONDecodeError, IOError):
                 return {}
         return {}
+
+    def _auto_detect_notification_service(self):
+        """Auto-detect available notification service based on environment variables"""
+        # Check for Twilio environment variables first (since we're prioritizing it)
+        twilio_vars = [
+            os.environ.get("TWILIO_ACCOUNT_SID"),
+            os.environ.get("TWILIO_AUTH_TOKEN"),
+            os.environ.get("TWILIO_FROM_PHONE"),
+            os.environ.get("TWILIO_TO_PHONE"),
+        ]
+
+        if TWILIO_AVAILABLE and all(twilio_vars):
+            print("📱 Auto-detected: Using Twilio SMS notifications")
+            return create_twilio_notifier()
+
+        # Fallback to AWS SNS if available
+        aws_vars = [
+            os.environ.get("SNS_TOPIC_ARN"),
+            os.environ.get("AWS_ACCESS_KEY_ID"),
+            os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        ]
+
+        if AWS_AVAILABLE and all(aws_vars):
+            print("☁️  Auto-detected: Using AWS SNS notifications")
+            return create_aws_notifier()
+
+        # No notification service detected
+        print("📵 No SMS service configured (set TWILIO_* or AWS_* environment variables)")
+        return None
 
     def _save_cache(self):
         """Save URL content cache to file"""
@@ -172,26 +230,18 @@ def main():
         print("  With SMS:     python url_watcher.py <URL> --sms")
         print("  Both:         python url_watcher.py <URL> --continuous --sms")
         print("\nFor SMS notifications, set these environment variables:")
-        print("  SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
+        print(
+            "  Twilio (preferred): TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_PHONE, TWILIO_TO_PHONE"
+        )
+        print("  AWS SNS (legacy):   SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
         sys.exit(1)
 
     url = sys.argv[1]
     continuous = "--continuous" in sys.argv[2:]
     enable_sms = "--sms" in sys.argv[2:]
 
-    # Initialize SMS notifier if requested
-    sms_notifier = None
-    if enable_sms:
-        sms_notifier = create_notifier_from_env()
-        if not sms_notifier.is_configured():
-            print("⚠️  SMS notifications requested but not properly configured")
-            print(
-                "Set SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY environment variables"
-            )
-        else:
-            print("📱 SMS notifications enabled")
-
-    watcher = URLWatcher(sms_notifier=sms_notifier)
+    # Initialize SMS notifier if requested (auto-detects Twilio vs AWS)
+    watcher = URLWatcher(notification_service="auto" if enable_sms else "none")
 
     try:
         if continuous:

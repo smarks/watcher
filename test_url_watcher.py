@@ -403,21 +403,15 @@ class TestMainCLI(unittest.TestCase):
         """Test main with SMS but not configured"""
         from url_watcher import main
 
-        with patch("url_watcher.create_notifier_from_env") as mock_create_notifier:
-            mock_notifier = Mock()
-            mock_notifier.is_configured.return_value = False
-            mock_create_notifier.return_value = mock_notifier
+        with patch("url_watcher.URLWatcher") as mock_watcher_class:
+            mock_watcher = Mock()
+            mock_watcher.check_url.return_value = (False, "")
+            mock_watcher_class.return_value = mock_watcher
 
-            with patch("url_watcher.URLWatcher") as mock_watcher_class:
-                mock_watcher = Mock()
-                mock_watcher.check_url.return_value = (False, "")
-                mock_watcher_class.return_value = mock_watcher
+            main()
 
-                main()
-
-                mock_print.assert_any_call(
-                    "⚠️  SMS notifications requested but not properly configured"
-                )
+            # Check that URLWatcher was created with auto notification service
+            mock_watcher_class.assert_called_with(notification_service="auto")
 
     @patch("sys.argv", ["url_watcher.py", "http://example.com", "--sms"])
     @patch("builtins.print")
@@ -425,19 +419,15 @@ class TestMainCLI(unittest.TestCase):
         """Test main with SMS properly configured"""
         from url_watcher import main
 
-        with patch("url_watcher.create_notifier_from_env") as mock_create_notifier:
-            mock_notifier = Mock()
-            mock_notifier.is_configured.return_value = True
-            mock_create_notifier.return_value = mock_notifier
+        with patch("url_watcher.URLWatcher") as mock_watcher_class:
+            mock_watcher = Mock()
+            mock_watcher.check_url.return_value = (False, "")
+            mock_watcher_class.return_value = mock_watcher
 
-            with patch("url_watcher.URLWatcher") as mock_watcher_class:
-                mock_watcher = Mock()
-                mock_watcher.check_url.return_value = (False, "")
-                mock_watcher_class.return_value = mock_watcher
+            main()
 
-                main()
-
-                mock_print.assert_any_call("📱 SMS notifications enabled")
+            # Check that URLWatcher was created with auto notification service
+            mock_watcher_class.assert_called_with(notification_service="auto")
 
     @patch("sys.argv", ["url_watcher.py", "http://example.com"])
     @patch("builtins.print")
