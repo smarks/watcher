@@ -14,3 +14,5 @@ venv/
 htmlcov/
 .coverage_baseline.json
 export_env.sh
+.env
+.env.local

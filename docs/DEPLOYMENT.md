@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers various deployment strategies for the URL Watcher, from simple local installations to production-ready cloud deployments with high availability and monitoring.
+This guide covers deployment strategies for the URL Watcher with TextBelt SMS notifications, from simple local installations to production-ready cloud deployments.
 
 ## Table of Contents
 
@@ -12,7 +12,6 @@ This guide covers various deployment strategies for the URL Watcher, from simple
 - [Container Deployment](#container-deployment)
 - [Production Considerations](#production-considerations)
 - [Monitoring and Logging](#monitoring-and-logging)
-- [Backup and Recovery](#backup-and-recovery)
 
 ## Local Development Setup
 
@@ -35,9 +34,19 @@ This guide covers various deployment strategies for the URL Watcher, from simple
    pip install -r requirements.txt
    ```
 
-4. **Verify Installation**
+4. **Configure SMS Notifications**
+   ```bash
+   # Create .env file with your TextBelt credentials
+   cat > .env << EOF
+   SMS_PHONE_NUMBER=+1234567890
+   TEXTBELT_API_KEY=your_textbelt_api_key
+   EOF
+   ```
+
+5. **Verify Installation**
    ```bash
    python url_watcher.py --help
+   python test_textbelt.py  # Test SMS functionality
    ```
 
 ### Development Configuration
@@ -46,14 +55,10 @@ Create a development configuration file:
 
 ```bash
 # dev_config.sh
-export AWS_REGION="us-east-1"
-export SNS_TOPIC_ARN="arn:aws:sns:us-east-1:123456789012:dev-topic"
-export AWS_ACCESS_KEY_ID="your-dev-key"
-export AWS_SECRET_ACCESS_KEY="your-dev-secret"
-
-# Development-specific settings
-export URL_WATCHER_ENV="development"
+export SMS_PHONE_NUMBER="+1234567890"
+export TEXTBELT_API_KEY="your_dev_api_key"
 export LOG_LEVEL="DEBUG"
+export URL_WATCHER_ENV="development"
 ```
 
 Load configuration:
@@ -69,8 +74,7 @@ python url_watcher.py https://httpbin.org/uuid --sms
 - Linux server (Ubuntu 20.04+ recommended)
 - Python 3.7 or higher
 - systemd for service management
-- (Optional) nginx for reverse proxy
-- (Optional) AWS CLI for SMS functionality
+- TextBelt API account and key
 
 ### Installation Steps
 
@@ -98,15 +102,13 @@ python url_watcher.py https://httpbin.org/uuid --sms
 4. **Create Configuration**
    ```bash
    # Create production config
-   cat > /home/urlwatcher/watcher/production.env << EOF
-   AWS_REGION=us-east-1
-   SNS_TOPIC_ARN=arn:aws:sns:us-east-1:123456789012:production-topic
-   AWS_ACCESS_KEY_ID=your-production-key
-   AWS_SECRET_ACCESS_KEY=your-production-secret
+   cat > /home/urlwatcher/watcher/.env << EOF
+   SMS_PHONE_NUMBER=+1234567890
+   TEXTBELT_API_KEY=your_production_api_key
    LOG_LEVEL=INFO
    EOF
    
-   chmod 600 /home/urlwatcher/watcher/production.env
+   chmod 600 /home/urlwatcher/watcher/.env
    ```
 
 5. **Create Systemd Service**
@@ -123,7 +125,6 @@ python url_watcher.py https://httpbin.org/uuid --sms
    Group=urlwatcher
    WorkingDirectory=/home/urlwatcher/watcher
    Environment=PATH=/home/urlwatcher/watcher/.venv/bin
-   EnvironmentFile=/home/urlwatcher/watcher/production.env
    ExecStart=/home/urlwatcher/watcher/.venv/bin/python url_watcher.py https://example.com --continuous --sms
    Restart=always
    RestartSec=30
@@ -147,7 +148,7 @@ python url_watcher.py https://httpbin.org/uuid --sms
 
 For monitoring multiple URLs, create a wrapper script:
 
-```bash
+```python
 # /home/urlwatcher/watcher/multi_monitor.py
 #!/usr/bin/env python3
 """
@@ -226,7 +227,7 @@ if __name__ == "__main__":
     main()
 ```
 
-Update systemd service to use the wrapper:
+Update systemd service:
 ```bash
 # Update ExecStart in /etc/systemd/system/urlwatcher.service
 ExecStart=/home/urlwatcher/watcher/.venv/bin/python /home/urlwatcher/watcher/multi_monitor.py
@@ -234,28 +235,24 @@ ExecStart=/home/urlwatcher/watcher/.venv/bin/python /home/urlwatcher/watcher/mul
 
 ## Cloud Deployment
 
-### AWS EC2 Deployment
+### DigitalOcean Droplet
 
-#### Launch EC2 Instance
-
-1. **Launch Instance**
+1. **Create Droplet**
    ```bash
-   # Using AWS CLI
-   aws ec2 run-instances \
-     --image-id ami-0c02fb55956c7d316 \
-     --instance-type t3.micro \
-     --key-name your-key-pair \
-     --security-group-ids sg-xxxxxxxx \
-     --subnet-id subnet-xxxxxxxx \
-     --user-data file://user-data.sh \
-     --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=URLWatcher}]'
+   # Using DigitalOcean CLI
+   doctl compute droplet create urlwatcher \
+     --image ubuntu-20-04-x64 \
+     --size s-1vcpu-1gb \
+     --region nyc1 \
+     --ssh-keys your-ssh-key-id \
+     --user-data-file user-data.sh
    ```
 
 2. **User Data Script** (`user-data.sh`):
    ```bash
    #!/bin/bash
-   yum update -y
-   yum install -y python3 python3-pip git
+   apt update && apt upgrade -y
+   apt install -y python3 python3-pip python3-venv git
    
    # Create service user
    useradd --system --create-home --shell /bin/bash urlwatcher
@@ -270,190 +267,56 @@ ExecStart=/home/urlwatcher/watcher/.venv/bin/python /home/urlwatcher/watcher/mul
    pip install -r requirements.txt
    EOF
    
-   # Create systemd service (similar to above)
-   # ... service configuration ...
-   
+   # Create systemd service and start
    systemctl enable urlwatcher
    systemctl start urlwatcher
    ```
 
-#### IAM Role Configuration
+### Heroku Deployment
 
-Create IAM role for EC2 instance:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "sns:Publish"
-      ],
-      "Resource": "arn:aws:sns:*:*:url-watcher-*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ],
-      "Resource": "arn:aws:logs:*:*:*"
-    }
-  ]
-}
-```
-
-### AWS Lambda Deployment
-
-For serverless URL checking:
-
-```python
-# lambda_function.py
-import json
-import boto3
-from url_watcher import URLWatcher
-from sms_notifier import SMSNotifier
-
-def lambda_handler(event, context):
-    """Lambda function for URL monitoring"""
-    
-    # Get configuration from environment variables
-    topic_arn = os.environ['SNS_TOPIC_ARN']
-    urls = json.loads(os.environ['URLS_TO_MONITOR'])
-    
-    # Initialize components
-    sms_notifier = SMSNotifier(topic_arn=topic_arn)
-    watcher = URLWatcher(sms_notifier=sms_notifier)
-    
-    results = []
-    
-    for url in urls:
-        try:
-            changed, diff = watcher.check_url(url)
-            results.append({
-                'url': url,
-                'changed': changed,
-                'success': True
-            })
-        except Exception as e:
-            results.append({
-                'url': url,
-                'error': str(e),
-                'success': False
-            })
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps(results)
-    }
-```
-
-**Deployment Package**:
-```bash
-# Create deployment package
-mkdir lambda-deployment
-cd lambda-deployment
-pip install -r ../requirements.txt -t .
-cp ../url_watcher.py ../sms_notifier.py .
-cp lambda_function.py .
-zip -r urlwatcher-lambda.zip .
-```
-
-**CloudFormation Template**:
-```yaml
-AWSTemplateFormatVersion: '2010-09-09'
-Resources:
-  URLWatcherFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: url-watcher
-      Runtime: python3.9
-      Handler: lambda_function.lambda_handler
-      Code:
-        ZipFile: |
-          # Deployment package content
-      Environment:
-        Variables:
-          SNS_TOPIC_ARN: !Ref URLWatcherTopic
-          URLS_TO_MONITOR: '["https://example.com", "https://httpbin.org/uuid"]'
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Timeout: 300
-
-  ScheduleRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Description: "Trigger URL Watcher every 5 minutes"
-      ScheduleExpression: "rate(5 minutes)"
-      State: ENABLED
-      Targets:
-        - Arn: !GetAtt URLWatcherFunction.Arn
-          Id: "URLWatcherTarget"
-```
-
-### Google Cloud Platform
-
-#### Cloud Run Deployment
-
-1. **Create Dockerfile**:
-   ```dockerfile
-   FROM python:3.9-slim
-   
-   WORKDIR /app
-   COPY requirements.txt .
-   RUN pip install -r requirements.txt
-   
-   COPY . .
-   
-   CMD ["python", "cloud_run_service.py"]
+1. **Create Procfile**
+   ```
+   worker: python url_watcher.py $TARGET_URL --continuous --sms
    ```
 
-2. **Cloud Run Service** (`cloud_run_service.py`):
-   ```python
-   import os
-   from flask import Flask, jsonify
-   from url_watcher import URLWatcher
-   
-   app = Flask(__name__)
-   
-   @app.route('/check', methods=['POST'])
-   def check_urls():
-       """HTTP endpoint for URL checking"""
-       urls = request.json.get('urls', [])
-       watcher = URLWatcher()
-       
-       results = []
-       for url in urls:
-           try:
-               changed, diff = watcher.check_url(url)
-               results.append({
-                   'url': url,
-                   'changed': changed,
-                   'diff': diff
-               })
-           except Exception as e:
-               results.append({
-                   'url': url,
-                   'error': str(e)
-               })
-       
-       return jsonify(results)
-   
-   if __name__ == '__main__':
-       port = int(os.environ.get('PORT', 8080))
-       app.run(host='0.0.0.0', port=port)
-   ```
-
-3. **Deploy to Cloud Run**:
+2. **Configure Environment Variables**
    ```bash
-   # Build and deploy
-   gcloud run deploy url-watcher \
-     --source . \
-     --platform managed \
-     --region us-central1 \
-     --allow-unauthenticated
+   heroku config:set SMS_PHONE_NUMBER="+1234567890"
+   heroku config:set TEXTBELT_API_KEY="your_api_key"
+   heroku config:set TARGET_URL="https://example.com"
    ```
+
+3. **Deploy**
+   ```bash
+   git add .
+   git commit -m "Add Heroku deployment"
+   git push heroku main
+   heroku ps:scale worker=1
+   ```
+
+### Railway Deployment
+
+1. **Create railway.json**
+   ```json
+   {
+     "$schema": "https://railway.app/railway.schema.json",
+     "build": {
+       "builder": "NIXPACKS"
+     },
+     "deploy": {
+       "startCommand": "python url_watcher.py $TARGET_URL --continuous --sms",
+       "healthcheckPath": "/health",
+       "healthcheckTimeout": 100,
+       "restartPolicyType": "ON_FAILURE"
+     }
+   }
+   ```
+
+2. **Environment Variables**
+   Set in Railway dashboard:
+   - `SMS_PHONE_NUMBER`: Your phone number
+   - `TEXTBELT_API_KEY`: Your TextBelt API key  
+   - `TARGET_URL`: URL to monitor
 
 ## Container Deployment
 
@@ -489,37 +352,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD python -c "from url_watcher import URLWatcher; URLWatcher()" || exit 1
 
 # Default command
-CMD ["python", "url_watcher.py", "https://httpbin.org/uuid", "--continuous"]
-```
-
-#### Multi-stage Build
-
-```dockerfile
-# Build stage
-FROM python:3.9-slim as builder
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
-
-# Runtime stage
-FROM python:3.9-slim
-
-# Copy Python packages from builder stage
-COPY --from=builder /root/.local /root/.local
-
-# Add user packages to PATH
-ENV PATH=/root/.local/bin:$PATH
-
-WORKDIR /app
-COPY . .
-
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash urlwatcher
-RUN chown -R urlwatcher:urlwatcher /app
-USER urlwatcher
-
-CMD ["python", "url_watcher.py", "https://httpbin.org/uuid", "--continuous"]
+CMD ["python", "url_watcher.py", "https://httpbin.org/uuid", "--continuous", "--sms"]
 ```
 
 #### Docker Compose
@@ -533,10 +366,8 @@ services:
     container_name: urlwatcher
     restart: unless-stopped
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - SNS_TOPIC_ARN=${SNS_TOPIC_ARN}
-      - AWS_REGION=us-east-1
+      - SMS_PHONE_NUMBER=${SMS_PHONE_NUMBER}
+      - TEXTBELT_API_KEY=${TEXTBELT_API_KEY}
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -590,18 +421,16 @@ spec:
       - name: urlwatcher
         image: urlwatcher:latest
         env:
-        - name: AWS_ACCESS_KEY_ID
+        - name: SMS_PHONE_NUMBER
           valueFrom:
             secretKeyRef:
-              name: aws-credentials
-              key: access-key-id
-        - name: AWS_SECRET_ACCESS_KEY
+              name: textbelt-credentials
+              key: phone-number
+        - name: TEXTBELT_API_KEY
           valueFrom:
             secretKeyRef:
-              name: aws-credentials
-              key: secret-access-key
-        - name: SNS_TOPIC_ARN
-          value: "arn:aws:sns:us-east-1:123456789012:urlwatcher"
+              name: textbelt-credentials
+              key: api-key
         resources:
           requests:
             memory: "128Mi"
@@ -609,74 +438,15 @@ spec:
           limits:
             memory: "256Mi"
             cpu: "500m"
-        livenessProbe:
-          exec:
-            command:
-            - python
-            - -c
-            - "from url_watcher import URLWatcher; URLWatcher()"
-          initialDelaySeconds: 30
-          periodSeconds: 30
-        readinessProbe:
-          exec:
-            command:
-            - python
-            - -c
-            - "from url_watcher import URLWatcher; URLWatcher()"
-          initialDelaySeconds: 5
-          periodSeconds: 10
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: aws-credentials
+  name: textbelt-credentials
 type: Opaque
 data:
-  access-key-id: <base64-encoded-access-key>
-  secret-access-key: <base64-encoded-secret-key>
-```
-
-#### Helm Chart
-
-Create `Chart.yaml`:
-```yaml
-apiVersion: v2
-name: urlwatcher
-description: URL Watcher Helm Chart
-version: 0.1.0
-appVersion: "1.0"
-```
-
-Create `values.yaml`:
-```yaml
-replicaCount: 2
-
-image:
-  repository: urlwatcher
-  tag: latest
-  pullPolicy: IfNotPresent
-
-service:
-  type: ClusterIP
-  port: 8080
-
-resources:
-  limits:
-    cpu: 500m
-    memory: 256Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
-
-aws:
-  accessKeyId: ""
-  secretAccessKey: ""
-  region: us-east-1
-  snsTopicArn: ""
-
-urls:
-  - https://example.com
-  - https://httpbin.org/uuid
+  phone-number: <base64-encoded-phone-number>
+  api-key: <base64-encoded-api-key>
 ```
 
 ## Production Considerations
@@ -685,44 +455,28 @@ urls:
 
 1. **Secrets Management**
    ```bash
-   # Use AWS Secrets Manager
-   aws secretsmanager create-secret \
-     --name urlwatcher/production \
-     --description "URL Watcher production secrets" \
-     --secret-string '{"aws_access_key_id":"xxx","aws_secret_access_key":"xxx","sns_topic_arn":"xxx"}'
+   # Use secure secret storage
+   # For example, with HashiCorp Vault:
+   vault kv put secret/urlwatcher \
+     sms_phone_number="+1234567890" \
+     textbelt_api_key="your_key"
    ```
 
 2. **Network Security**
-   - Use security groups/firewalls to restrict access
-   - Enable HTTPS for all web interfaces
+   - Use firewalls to restrict access
+   - Enable HTTPS for monitoring interfaces
    - Use VPN for administrative access
 
 3. **File Permissions**
    ```bash
    # Secure configuration files
-   chmod 600 /home/urlwatcher/watcher/production.env
-   chown urlwatcher:urlwatcher /home/urlwatcher/watcher/production.env
+   chmod 600 /home/urlwatcher/watcher/.env
+   chown urlwatcher:urlwatcher /home/urlwatcher/watcher/.env
    ```
 
 ### Performance Optimization
 
-1. **Resource Monitoring**
-   ```python
-   # Add resource monitoring to your service
-   import psutil
-   import logging
-   
-   def monitor_resources():
-       cpu_percent = psutil.cpu_percent()
-       memory_percent = psutil.virtual_memory().percent
-       
-       if cpu_percent > 80:
-           logging.warning(f"High CPU usage: {cpu_percent}%")
-       if memory_percent > 80:
-           logging.warning(f"High memory usage: {memory_percent}%")
-   ```
-
-2. **Connection Pooling**
+1. **Connection Pooling**
    ```python
    # Use requests session for connection pooling
    import requests
@@ -742,190 +496,68 @@ urls:
            return response.text
    ```
 
-### High Availability
-
-1. **Load Balancing**
-   ```bash
-   # nginx load balancer configuration
-   upstream urlwatcher_backend {
-       server 10.0.1.10:8080;
-       server 10.0.1.11:8080;
-       server 10.0.1.12:8080;
-   }
-   
-   server {
-       listen 80;
-       location / {
-           proxy_pass http://urlwatcher_backend;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-       }
-   }
-   ```
-
-2. **Database Replication**
+2. **Rate Limiting**
    ```python
-   # Use distributed cache for URL states
-   import redis
+   # Respect TextBelt rate limits
+   import time
+   from functools import wraps
    
-   class DistributedURLWatcher(URLWatcher):
-       def __init__(self, redis_url="redis://localhost:6379", **kwargs):
-           super().__init__(**kwargs)
-           self.redis_client = redis.from_url(redis_url)
+   class RateLimitedSMSNotifier(SMSNotifier):
+       def __init__(self, *args, **kwargs):
+           super().__init__(*args, **kwargs)
+           self.last_sms_time = 0
+           self.min_interval = 60  # Minimum 1 minute between SMS
        
-       def _load_cache(self):
-           try:
-               cache_data = self.redis_client.get('urlwatcher_cache')
-               if cache_data:
-                   return json.loads(cache_data)
-           except Exception as e:
-               logging.error(f"Redis error: {e}")
-           return {}
-       
-       def _save_cache(self):
-           try:
-               self.redis_client.set('urlwatcher_cache', json.dumps(self.cache))
-           except Exception as e:
-               logging.error(f"Redis save error: {e}")
-   ```
-
-## Monitoring and Logging
-
-### Centralized Logging
-
-1. **ELK Stack Configuration**
-   ```yaml
-   # docker-compose.yml for ELK stack
-   version: '3.8'
-   services:
-     elasticsearch:
-       image: docker.elastic.co/elasticsearch/elasticsearch:7.15.0
-       environment:
-         - discovery.type=single-node
-       ports:
-         - "9200:9200"
-     
-     logstash:
-       image: docker.elastic.co/logstash/logstash:7.15.0
-       volumes:
-         - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-     
-     kibana:
-       image: docker.elastic.co/kibana/kibana:7.15.0
-       ports:
-         - "5601:5601"
-       depends_on:
-         - elasticsearch
-   ```
-
-2. **Structured Logging**
-   ```python
-   import json
-   import logging
-   from datetime import datetime
-   
-   class JSONFormatter(logging.Formatter):
-       def format(self, record):
-           log_entry = {
-               'timestamp': datetime.utcnow().isoformat(),
-               'level': record.levelname,
-               'logger': record.name,
-               'message': record.getMessage(),
-               'module': record.module,
-               'function': record.funcName,
-               'line': record.lineno
-           }
+       def send_notification(self, url, message, subject=None):
+           # Enforce rate limiting
+           current_time = time.time()
+           time_since_last = current_time - self.last_sms_time
            
-           if hasattr(record, 'url'):
-               log_entry['url'] = record.url
-           if hasattr(record, 'changed'):
-               log_entry['changed'] = record.changed
-               
-           return json.dumps(log_entry)
-   
-   # Configure structured logging
-   handler = logging.StreamHandler()
-   handler.setFormatter(JSONFormatter())
-   logging.getLogger().addHandler(handler)
+           if time_since_last < self.min_interval:
+               sleep_time = self.min_interval - time_since_last
+               time.sleep(sleep_time)
+           
+           result = super().send_notification(url, message, subject)
+           self.last_sms_time = time.time()
+           return result
    ```
 
-### Metrics Collection
+### Monitoring and Alerting
 
-1. **Prometheus Metrics**
+1. **Health Check Endpoint**
    ```python
-   from prometheus_client import Counter, Histogram, Gauge, start_http_server
+   from flask import Flask, jsonify
    
-   # Define metrics
-   url_checks_total = Counter('urlwatcher_checks_total', 'Total URL checks', ['url', 'status'])
-   url_check_duration = Histogram('urlwatcher_check_duration_seconds', 'URL check duration')
-   urls_monitored = Gauge('urlwatcher_urls_monitored', 'Number of URLs being monitored')
-   changes_detected = Counter('urlwatcher_changes_detected_total', 'Changes detected', ['url'])
+   app = Flask(__name__)
    
-   class MetricsURLWatcher(URLWatcher):
-       def check_url(self, url):
-           with url_check_duration.time():
-               try:
-                   changed, diff = super().check_url(url)
-                   url_checks_total.labels(url=url, status='success').inc()
-                   if changed:
-                       changes_detected.labels(url=url).inc()
-                   return changed, diff
-               except Exception as e:
-                   url_checks_total.labels(url=url, status='error').inc()
-                   raise
+   @app.route('/health')
+   def health_check():
+       """Health check endpoint"""
+       try:
+           # Test TextBelt configuration
+           notifier = create_notifier_from_env()
+           is_configured = notifier.is_configured()
+           
+           return jsonify({
+               'status': 'healthy' if is_configured else 'degraded',
+               'sms_configured': is_configured,
+               'timestamp': time.time()
+           }), 200 if is_configured else 503
+       except Exception as e:
+           return jsonify({
+               'status': 'unhealthy',
+               'error': str(e)
+           }), 503
    
-   # Start metrics server
-   start_http_server(8000)
+   @app.route('/metrics')
+   def metrics():
+       """Prometheus metrics endpoint"""
+       # Return metrics in Prometheus format
+       return "# HELP urlwatcher_checks_total Total URL checks\n" \
+              "urlwatcher_checks_total 42\n"
    ```
 
-### Health Checks
-
-```python
-from flask import Flask, jsonify
-import threading
-import time
-
-app = Flask(__name__)
-health_status = {'status': 'healthy', 'last_check': None}
-
-def health_monitor():
-    """Background health monitoring"""
-    while True:
-        try:
-            # Perform health checks
-            watcher = URLWatcher()
-            # Test basic functionality
-            health_status['status'] = 'healthy'
-            health_status['last_check'] = time.time()
-        except Exception as e:
-            health_status['status'] = 'unhealthy'
-            health_status['error'] = str(e)
-        
-        time.sleep(60)
-
-@app.route('/health')
-def health_check():
-    """Health check endpoint"""
-    status_code = 200 if health_status['status'] == 'healthy' else 503
-    return jsonify(health_status), status_code
-
-@app.route('/ready')
-def readiness_check():
-    """Readiness check endpoint"""
-    # Check if service is ready to accept requests
-    try:
-        watcher = URLWatcher()
-        return jsonify({'status': 'ready'}), 200
-    except Exception as e:
-        return jsonify({'status': 'not ready', 'error': str(e)}), 503
-
-# Start health monitoring thread
-threading.Thread(target=health_monitor, daemon=True).start()
-```
-
-## Backup and Recovery
-
-### Data Backup
+### Backup and Recovery
 
 ```bash
 #!/bin/bash
@@ -941,80 +573,23 @@ mkdir -p "$BACKUP_DIR"
 # Backup cache files
 tar -czf "$BACKUP_DIR/cache_backup_$DATE.tar.gz" -C "$DATA_DIR" .
 
-# Backup configuration
-cp /home/urlwatcher/watcher/production.env "$BACKUP_DIR/config_backup_$DATE.env"
+# Backup configuration (excluding secrets)
+cp /home/urlwatcher/watcher/.env.example "$BACKUP_DIR/config_template_$DATE.env"
 
-# Upload to S3 (optional)
-aws s3 cp "$BACKUP_DIR/cache_backup_$DATE.tar.gz" s3://urlwatcher-backups/
+# Upload to cloud storage (example with rclone)
+rclone copy "$BACKUP_DIR/cache_backup_$DATE.tar.gz" remote:urlwatcher-backups/
 
-# Clean old backups (keep last 30 days)
+# Clean old backups (keep last 30 days)  
 find "$BACKUP_DIR" -name "*.tar.gz" -mtime +30 -delete
 ```
 
-### Disaster Recovery
+## Environment Variables Reference
 
-1. **Recovery Script**
-   ```bash
-   #!/bin/bash
-   # recovery_script.sh
-   
-   BACKUP_S3_BUCKET="urlwatcher-backups"
-   RECOVERY_DIR="/tmp/urlwatcher_recovery"
-   
-   # Download latest backup
-   aws s3 sync s3://$BACKUP_S3_BUCKET $RECOVERY_DIR
-   
-   # Find latest backup
-   LATEST_BACKUP=$(ls -t $RECOVERY_DIR/cache_backup_*.tar.gz | head -1)
-   
-   # Restore data
-   sudo systemctl stop urlwatcher
-   tar -xzf "$LATEST_BACKUP" -C /home/urlwatcher/data/
-   sudo systemctl start urlwatcher
-   
-   echo "Recovery completed from $LATEST_BACKUP"
-   ```
+| Variable | Description | Example | Required |
+|----------|-------------|---------|----------|
+| `SMS_PHONE_NUMBER` | Target phone number in E.164 format | `+1234567890` | Yes |
+| `TEXTBELT_API_KEY` | TextBelt API key | `textbelt_abc123...` | Yes |
+| `LOG_LEVEL` | Logging level | `INFO`, `DEBUG` | No |
+| `URL_WATCHER_ENV` | Environment name | `production`, `development` | No |
 
-2. **Automated Recovery Testing**
-   ```python
-   # test_recovery.py
-   import subprocess
-   import tempfile
-   import json
-   import os
-   
-   def test_backup_recovery():
-       """Test backup and recovery process"""
-       
-       # Create test data
-       test_cache = {
-           "https://test.com": {
-               "content": "test content",
-               "hash": "testhash",
-               "last_checked": "2025-07-29T16:45:32"
-           }
-       }
-       
-       with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-           json.dump(test_cache, f)
-           test_file = f.name
-       
-       try:
-           # Test backup
-           result = subprocess.run(['./backup_script.sh'], capture_output=True, text=True)
-           assert result.returncode == 0, f"Backup failed: {result.stderr}"
-           
-           # Test recovery
-           result = subprocess.run(['./recovery_script.sh'], capture_output=True, text=True)
-           assert result.returncode == 0, f"Recovery failed: {result.stderr}"
-           
-           print("✅ Backup/Recovery test passed")
-           
-       finally:
-           os.unlink(test_file)
-   
-   if __name__ == "__main__":
-       test_backup_recovery()
-   ```
-
-This deployment guide provides comprehensive coverage of various deployment scenarios, from simple local setups to production-ready cloud deployments with monitoring, logging, and disaster recovery capabilities.
+This deployment guide focuses on TextBelt integration and removes all AWS dependencies, providing modern, cloud-agnostic deployment options.
