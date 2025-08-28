@@ -5,7 +5,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/smarks/watcher)
 [![Tests](https://img.shields.io/badge/tests-passing-green)](https://github.com/smarks/watcher/actions)
 [![Python](https://img.shields.io/badge/python-3.9+-blue)](https://python.org)
-[![AWS](https://img.shields.io/badge/aws-sns-orange)](https://aws.amazon.com/sns/)
+[![TextBelt](https://img.shields.io/badge/textbelt-sms-green)](https://textbelt.com)
 
 **Perfect for beginners!** Monitor website changes, get SMS alerts, and learn Python automation. Written mostly by Claude AI under the careful direction of Spencer.
 
@@ -18,7 +18,7 @@ URL Watcher is like having a personal assistant that:
 - 📱 **Sends you SMS alerts** when something changes
 - 🔍 **Shows you exactly** what changed with before/after comparisons
 - ⏰ **Works 24/7** checking sites automatically
-- 🆓 **Costs almost nothing** to run (AWS SMS: ~$0.006 per message)
+- 🆓 **Costs almost nothing** to run (TextBelt SMS: ~$0.015 per message)
 
 ## 🚀 5-Minute Quick Start
 
@@ -216,6 +216,7 @@ You'll see the change detection in Terminal 2! 🎉
 
 ## 📱 SMS Notifications Setup
 
+<<<<<<< HEAD
 Get instant text message alerts when websites change!
 
 ### Option A: Quick Setup (Recommended for beginners)
@@ -240,13 +241,47 @@ Get instant text message alerts when websites change!
    ```
 
 4. **Use monitoring with SMS:**
+=======
+Get instant text message alerts when websites change! Choose between Twilio (recommended) or AWS SNS.
+
+### Option A: Twilio Setup (Recommended - Easier)
+
+1. **Create a Twilio account:**
+   - Go to [twilio.com](https://twilio.com) and sign up (free trial available)
+   - Verify your phone number during signup
+
+2. **Get your Twilio credentials:**
+   - In Twilio Console, find your Account SID and Auth Token
+   - Purchase a Twilio phone number (or use trial number)
+
+3. **Set environment variables:**
+   ```bash
+   export TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   export TWILIO_AUTH_TOKEN="your_auth_token"
+   export TWILIO_FROM_PHONE="+15551234567"  # Your Twilio number
+   export TWILIO_TO_PHONE="+19876543210"    # Your personal number
+   ```
+
+4. **Test configuration:**
+   ```bash
+   python twilio_notifier.py
+   ```
+
+5. **Use monitoring with SMS:**
+>>>>>>> 389602e6099cb0e76a2f39ce34c4e0f3c015460b
    ```bash
    python url_watcher.py https://example.com --sms --continuous
    ```
 
+<<<<<<< HEAD
 ### Option B: Manual AWS Setup
 
 If you prefer manual control or the script doesn't work:
+=======
+### Option B: AWS SNS Setup (Legacy)
+
+For users who prefer AWS or already have AWS infrastructure:
+>>>>>>> 389602e6099cb0e76a2f39ce34c4e0f3c015460b
 
 1. **Create SNS Topic in AWS Console:**
    - Go to AWS SNS Console

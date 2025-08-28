@@ -186,7 +186,7 @@ def main():
         if not sms_notifier.is_configured():
             print("⚠️  SMS notifications requested but not properly configured")
             print(
-                "Set SMS_PHONE_NUMBER and TEXTBELT_API_KEY environment variables or add to .env file"
+                 "Set SMS_PHONE_NUMBER and TEXTBELT_API_KEY environment variables or add to .env file"
             )
         else:
             print("📱 SMS notifications enabled")
