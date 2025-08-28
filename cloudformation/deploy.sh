@@ -42,8 +42,20 @@ if [[ -z "$PHONE_NUMBER" ]]; then
     usage
 fi
 
-# Validate phone number format
-if [[ ! "$PHONE_NUMBER" =~ ^\+[1-9][0-9]{1,14}$ ]]; then
+# Validate phone number format - E.164 format starts with + followed by 1-15 digits
+if [[ ${#PHONE_NUMBER} -lt 3 ]] || [[ ${#PHONE_NUMBER} -gt 15 ]]; then
+    echo "Error: Phone number must be in E.164 format (e.g., +1234567890)"
+    exit 1
+fi
+
+if [[ "$PHONE_NUMBER" != +* ]]; then
+    echo "Error: Phone number must start with + (E.164 format)"
+    exit 1
+fi
+
+# Check that after + there's at least one digit and all remaining characters are digits
+DIGITS_PART="${PHONE_NUMBER:1}"
+if [[ -z "$DIGITS_PART" ]] || [[ ! "$DIGITS_PART" =~ ^[0-9]*$ ]] || [[ "${DIGITS_PART:0:1}" == "0" ]]; then
     echo "Error: Phone number must be in E.164 format (e.g., +1234567890)"
     exit 1
 fi

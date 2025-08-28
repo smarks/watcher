@@ -15,7 +15,7 @@ This guide explains how to set up SMS notifications for the URL Watcher using AW
 
 ```bash
 cd cloudformation
-./deploy.sh -p "+1234567890"
+cd clo
 ```
 
 Replace `+1234567890` with your actual phone number in E.164 format.

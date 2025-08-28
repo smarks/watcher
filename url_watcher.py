@@ -172,7 +172,7 @@ def main():
         print("  With SMS:     python url_watcher.py <URL> --sms")
         print("  Both:         python url_watcher.py <URL> --continuous --sms")
         print("\nFor SMS notifications, set these environment variables:")
-        print("  SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
+        print("  SMS_PHONE_NUMBER (e.g., '+1234567890'), TEXTBELT_API_KEY")
         sys.exit(1)
 
     url = sys.argv[1]
@@ -186,7 +186,7 @@ def main():
         if not sms_notifier.is_configured():
             print("⚠️  SMS notifications requested but not properly configured")
             print(
-                "Set SNS_TOPIC_ARN, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY environment variables"
+                "Set SMS_PHONE_NUMBER and TEXTBELT_API_KEY environment variables or add to .env file"
             )
         else:
             print("📱 SMS notifications enabled")

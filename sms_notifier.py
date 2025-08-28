@@ -1,59 +1,38 @@
 #!/usr/bin/env python3
 """
 SMS Notification Module for URL Watcher
-Sends SMS notifications via AWS SNS when URL changes are detected
+Sends SMS notifications via TextBelt API when URL changes are detected
 """
 
 import os
-import boto3
+import requests
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
-from botocore.exceptions import ClientError, NoCredentialsError
 
 
 class SMSNotifier:
-    """Handles SMS notifications via AWS SNS"""
+    """Handles SMS notifications via TextBelt API"""
 
     def __init__(
         self,
-        topic_arn: str = None,
-        aws_access_key_id: str = None,
-        aws_secret_access_key: str = None,
-        region_name: str = "us-east-1",
+        phone_number: str = None,
+        api_key: str = None,
     ):
         """
         Initialize SMS notifier
 
         Args:
-            topic_arn: SNS topic ARN for sending SMS
-            aws_access_key_id: AWS access key ID
-            aws_secret_access_key: AWS secret access key
-            region_name: AWS region name (default: us-east-1)
+            phone_number: Phone number to send SMS to (e.g., "+1234567890")
+            api_key: TextBelt API key
         """
-        self.topic_arn = topic_arn or os.getenv("SNS_TOPIC_ARN")
-        self.region_name = region_name
-
-        # Initialize boto3 client
-        try:
-            if aws_access_key_id and aws_secret_access_key:
-                self.sns_client = boto3.client(
-                    "sns",
-                    aws_access_key_id=aws_access_key_id,
-                    aws_secret_access_key=aws_secret_access_key,
-                    region_name=region_name,
-                )
-            else:
-                # Use environment variables or IAM role
-                self.sns_client = boto3.client("sns", region_name=region_name)
-
-        except (NoCredentialsError, Exception) as e:
-            logging.error(f"Failed to initialize AWS SNS client: {e}")
-            self.sns_client = None
+        self.phone_number = phone_number or os.getenv("SMS_PHONE_NUMBER")
+        self.api_key = api_key or os.getenv("TEXTBELT_API_KEY")
+        self.api_url = "https://textbelt.com/text"
 
     def is_configured(self) -> bool:
         """Check if SMS notifications are properly configured"""
-        return self.sns_client is not None and self.topic_arn is not None
+        return self.phone_number is not None and self.api_key is not None
 
     def send_notification(self, url: str, message: str, subject: str = None) -> bool:
         """
@@ -62,7 +41,7 @@ class SMSNotifier:
         Args:
             url: The URL that changed
             message: Change description/diff
-            subject: Optional subject line
+            subject: Optional subject line (not used with TextBelt)
 
         Returns:
             bool: True if notification sent successfully, False otherwise
@@ -72,33 +51,54 @@ class SMSNotifier:
             return False
 
         try:
-            # Prepare message
+            # Prepare simple message without URLs or diffs to avoid TextBelt restrictions
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sms_message = f"URL CHANGE DETECTED\n"
+            sms_message = f"WEBSITE CHANGE DETECTED\n"
             sms_message += f"Time: {timestamp}\n"
-            sms_message += f"URL: {url}\n\n"
+            
+            # Extract and simplify domain from URL
+            try:
+                from urllib.parse import urlparse
+                domain = urlparse(url).netloc
+                # Further simplify domain to avoid detection
+                domain_parts = domain.split('.')
+                if len(domain_parts) > 1:
+                    simplified = f"{domain_parts[0]} site"
+                else:
+                    simplified = "monitored site"
+                sms_message += f"Site: {simplified}\n\n"
+            except Exception:
+                sms_message += f"Site: monitored website\n\n"
 
-            # Truncate message for SMS limits (160 chars for single SMS)
-            if len(message) > 100:
-                sms_message += f"Changes: {message[:100]}..."
+            # Use simple change notification instead of diff content
+            sms_message += "Content changes detected. Check your monitoring dashboard for details."
+
+            # Debug: Log the message being sent
+            logging.info(f"Sending SMS message: {repr(sms_message)}")
+            
+            # Send message via TextBelt API
+            payload = {
+                "phone": self.phone_number,
+                "message": sms_message,
+                "key": self.api_key,
+            }
+
+            response = requests.post(self.api_url, data=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if result.get("success"):
+                text_id = result.get("textId")
+                logging.info(f"SMS notification sent successfully. TextId: {text_id}")
+                return True
             else:
-                sms_message += f"Changes: {message}"
+                error_msg = result.get("error", "Unknown error")
+                logging.error(f"TextBelt API error: {error_msg}")
+                return False
 
-            # Send message
-            response = self.sns_client.publish(
-                TopicArn=self.topic_arn,
-                Message=sms_message,
-                Subject=subject or f"URL Change: {url[:50]}...",
-            )
-
-            message_id = response.get("MessageId")
-            logging.info(f"SMS notification sent successfully. MessageId: {message_id}")
-            return True
-
-        except ClientError as e:
-            error_code = e.response["Error"]["Code"]
-            error_message = e.response["Error"]["Message"]
-            logging.error(f"AWS SNS error ({error_code}): {error_message}")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"HTTP error sending SMS: {e}")
             return False
 
         except Exception as e:
@@ -117,48 +117,75 @@ class SMSNotifier:
                 "success": False,
                 "error": "SMS notifications not configured",
                 "details": {
-                    "sns_client": self.sns_client is not None,
-                    "topic_arn": self.topic_arn is not None,
+                    "phone_number": self.phone_number is not None,
+                    "api_key": self.api_key is not None,
                 },
             }
 
         try:
             test_message = f"Test notification from URL Watcher at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
-            response = self.sns_client.publish(
-                TopicArn=self.topic_arn, Message=test_message, Subject="URL Watcher Test"
-            )
-
-            return {
-                "success": True,
-                "message_id": response.get("MessageId"),
-                "details": {"topic_arn": self.topic_arn, "region": self.region_name},
+            payload = {
+                "phone": self.phone_number,
+                "message": test_message,
+                "key": self.api_key,
             }
 
-        except ClientError as e:
-            return {
-                "success": False,
-                "error": f"AWS SNS error: {e.response['Error']['Message']}",
-                "error_code": e.response["Error"]["Code"],
-            }
+            response = requests.post(self.api_url, data=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "text_id": result.get("textId"),
+                    "details": {
+                        "phone_number": self.phone_number,
+                        "api_url": self.api_url,
+                    },
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"TextBelt API error: {result.get('error', 'Unknown error')}",
+                }
+
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"HTTP error: {str(e)}"}
 
         except Exception as e:
             return {"success": False, "error": f"Unexpected error: {str(e)}"}
 
 
-def create_notifier_from_env() -> SMSNotifier:
+def create_notifier_from_env(load_dotenv: bool = True) -> SMSNotifier:
     """
     Create SMS notifier using environment variables
 
     Expected environment variables:
-    - SNS_TOPIC_ARN: ARN of the SNS topic
-    - AWS_ACCESS_KEY_ID: AWS access key ID
-    - AWS_SECRET_ACCESS_KEY: AWS secret access key
-    - AWS_REGION: AWS region (optional, defaults to us-east-1)
+    - SMS_PHONE_NUMBER: Phone number to send SMS to (e.g., "+1234567890")
+    - TEXTBELT_API_KEY: TextBelt API key
+
+    Args:
+        load_dotenv: Whether to load .env file (default: True)
     """
+    # Try to load .env file only if requested (for testing flexibility)
+    if load_dotenv:
+        env_file = ".env"
+        if os.path.exists(env_file):
+            try:
+                with open(env_file, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            key, value = line.split("=", 1)
+                            # Only set if not already in environment (allows test override)
+                            if key.strip() not in os.environ:
+                                os.environ[key.strip()] = value.strip()
+            except Exception as e:
+                logging.warning(f"Failed to load .env file: {e}")
+
     return SMSNotifier(
-        topic_arn=os.getenv("SNS_TOPIC_ARN"),
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("AWS_REGION", "us-east-1"),
+        phone_number=os.getenv("SMS_PHONE_NUMBER"),
+        api_key=os.getenv("TEXTBELT_API_KEY"),
     )
