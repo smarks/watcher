@@ -51,27 +51,12 @@ class SMSNotifier:
             return False
 
         try:
-            # Prepare simple message without URLs or diffs to avoid TextBelt restrictions
+            # Prepare message with the actual URL that changed
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sms_message = f"WEBSITE CHANGE DETECTED\n"
             sms_message += f"Time: {timestamp}\n"
-            
-            # Extract and simplify domain from URL
-            try:
-                from urllib.parse import urlparse
-                domain = urlparse(url).netloc
-                # Further simplify domain to avoid detection
-                domain_parts = domain.split('.')
-                if len(domain_parts) > 1:
-                    simplified = f"{domain_parts[0]} site"
-                else:
-                    simplified = "monitored site"
-                sms_message += f"Site: {simplified}\n\n"
-            except Exception:
-                sms_message += f"Site: monitored website\n\n"
-
-            # Use simple change notification instead of diff content
-            sms_message += "Content changes detected. Check your monitoring dashboard for details."
+            sms_message += f"URL: {url}\n\n"
+            sms_message += "Content changes detected."
 
             # Debug: Log the message being sent
             logging.info(f"Sending SMS message: {repr(sms_message)}")
