@@ -18,8 +18,12 @@ def test_direct_sms():
         region_name=os.environ.get('AWS_REGION', 'us-east-1')
     )
     
-    topic_arn = "arn:aws:sns:us-east-1:***REMOVED***:url-watcher-notifications"
-    phone_number = "+1***REMOVED***"
+    topic_arn = os.environ.get('SNS_TOPIC_ARN')
+    phone_number = os.environ.get('SMS_PHONE_NUMBER')
+    
+    if not topic_arn or not phone_number:
+        print("❌ Please set SNS_TOPIC_ARN and SMS_PHONE_NUMBER environment variables")
+        return
     
     print("Testing SMS sending approaches...")
     
