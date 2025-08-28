@@ -4,17 +4,18 @@ Debug SMS sending with various approaches
 """
 import boto3
 import json
+import os
 from datetime import datetime
 
 def test_direct_sms():
     """Test direct SMS sending"""
     
-    # Using the same credentials as before
+    # Using credentials from environment variables
     sns = boto3.client(
         'sns',
-        aws_access_key_id="AKIAVVIGI22T5ZTXH3XS",
-        aws_secret_access_key="***REMOVED***",
-        region_name="us-east-1"
+        aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+        region_name=os.environ.get('AWS_REGION', 'us-east-1')
     )
     
     topic_arn = "arn:aws:sns:us-east-1:***REMOVED***:url-watcher-notifications"
