@@ -88,10 +88,15 @@ class URLWatcher:
         # Send SMS notification if configured
         if self.sms_notifier and self.sms_notifier.is_configured():
             try:
-                self.sms_notifier.send_notification(url, diff)
-                logging.info(f"SMS notification sent for URL: {url}")
+                success = self.sms_notifier.send_notification(url, diff)
+                if success:
+                    logging.info(f"SMS notification sent successfully for URL: {url}")
+                else:
+                    logging.error(
+                        f"SMS notification failed for URL: {url} - check logs for details"
+                    )
             except Exception as e:
-                logging.error(f"Failed to send SMS notification: {e}")
+                logging.error(f"Unexpected error sending SMS notification for URL {url}: {e}")
 
         # Update cache with new content
         self.cache[url] = {
@@ -165,6 +170,13 @@ class URLWatcher:
 
 
 def main():
+    # Configure logging to show SMS notification failures
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     if len(sys.argv) < 2:
         print("Usage: python url_watcher.py <URL> [--continuous] [--sms]")
         print("  Single check: python url_watcher.py <URL>")
