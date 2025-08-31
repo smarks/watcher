@@ -3,11 +3,9 @@
 Test script for URL watcher functionality
 """
 
-import subprocess
 import time
 import requests
 import os
-import json
 from url_watcher import URLWatcher
 
 

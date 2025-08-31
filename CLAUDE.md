@@ -3,17 +3,25 @@
 This file contains configuration and context for Claude Code to better assist with this project.
 
 ## Project Overview
-<!-- Add a brief description of what this project does -->
+URL Watcher - A Python application that monitors URLs for changes and sends SMS notifications when changes are detected.
 
 ## Development Commands
-<!-- Add common commands you use for this project -->
-- Build: `<!-- Add your build command -->`
-- Test: `<!-- Add your test command -->`
-- Lint: `<!-- Add your lint command -->`
-- Start: `<!-- Add your start/dev command -->`
+- Test: `python -m pytest`
+- Lint: `flake8 . && black --check .`
+- Format: `black .`
+- Coverage: `python -m pytest --cov=. --cov-report=term-missing`
+- Start: `python url_watcher.py --url <URL> --interval <seconds>`
 
 ## Project Structure
-<!-- Describe the key directories and files -->
+- `url_watcher.py` - Main application for monitoring URLs
+- `sms_notifier.py` - SMS notification module using TextBelt API
+- `coverage_tracker.py` - Coverage tracking and baseline management
+- `test_*.py` - Unit test files
+- `.flake8` - Flake8 linter configuration
+- `pyproject.toml` - Black formatter and project configuration
 
 ## Important Notes
-<!-- Add any project-specific context, conventions, or important information -->
+- Always run linting before committing: `flake8 . && black --check .`
+- Use black for formatting: `black .`
+- Max line length is configured to 100 characters
+- SMS notifications require TEXTBELT_API_KEY and SMS_PHONE_NUMBER environment variables

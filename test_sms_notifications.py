@@ -5,10 +5,8 @@ Test suite for SMS notification functionality using TextBelt API
 
 import unittest
 import os
-import json
 import logging
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, patch
 import requests
 
 from sms_notifier import SMSNotifier, create_notifier_from_env
@@ -36,10 +34,9 @@ class TestSMSNotifier(unittest.TestCase):
 
     def test_initialization_from_env(self):
         """Test SMSNotifier initialization from environment variables"""
-        with patch.dict(os.environ, {
-            "SMS_PHONE_NUMBER": self.phone_number,
-            "TEXTBELT_API_KEY": self.api_key
-        }):
+        with patch.dict(
+            os.environ, {"SMS_PHONE_NUMBER": self.phone_number, "TEXTBELT_API_KEY": self.api_key}
+        ):
             notifier = SMSNotifier()
             self.assertEqual(notifier.phone_number, self.phone_number)
             self.assertEqual(notifier.api_key, self.api_key)
@@ -59,7 +56,7 @@ class TestSMSNotifier(unittest.TestCase):
         notifier = SMSNotifier(phone_number=self.phone_number, api_key=None)
         self.assertFalse(notifier.is_configured())
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_send_notification_success(self, mock_post):
         """Test successful SMS notification sending"""
         mock_response = Mock()
@@ -68,10 +65,7 @@ class TestSMSNotifier(unittest.TestCase):
         mock_post.return_value = mock_response
 
         notifier = SMSNotifier(phone_number=self.phone_number, api_key=self.api_key)
-        result = notifier.send_notification(
-            url="http://example.com", 
-            message="Content changed"
-        )
+        result = notifier.send_notification(url="http://example.com", message="Content changed")
 
         self.assertTrue(result)
         mock_post.assert_called_once()
@@ -86,7 +80,7 @@ class TestSMSNotifier(unittest.TestCase):
         result = notifier.send_notification("http://example.com", "test message")
         self.assertFalse(result)
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_send_notification_api_error(self, mock_post):
         """Test handling TextBelt API errors"""
         mock_response = Mock()
@@ -99,7 +93,7 @@ class TestSMSNotifier(unittest.TestCase):
 
         self.assertFalse(result)
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_send_notification_http_error(self, mock_post):
         """Test handling HTTP errors"""
         mock_post.side_effect = requests.exceptions.RequestException("Network error")
@@ -109,7 +103,7 @@ class TestSMSNotifier(unittest.TestCase):
 
         self.assertFalse(result)
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_send_notification_generic_exception(self, mock_post):
         """Test generic exception handling in send_notification"""
         mock_post.side_effect = ValueError("Some generic error")
@@ -122,7 +116,7 @@ class TestSMSNotifier(unittest.TestCase):
             self.assertFalse(result)
             mock_log.assert_called_with("Unexpected error sending SMS: Some generic error")
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_test_notification_success(self, mock_post):
         """Test successful test notification"""
         mock_response = Mock()
@@ -137,7 +131,7 @@ class TestSMSNotifier(unittest.TestCase):
         self.assertEqual(result["text_id"], "test-12345")
         self.assertEqual(result["details"]["phone_number"], self.phone_number)
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_test_notification_failure(self, mock_post):
         """Test failed test notification"""
         mock_response = Mock()
@@ -194,14 +188,14 @@ class TestCreateNotifierFromEnv(unittest.TestCase):
         self.assertIsNone(notifier.phone_number)
         self.assertIsNone(notifier.api_key)
 
-    @patch('os.path.exists')
-    @patch('builtins.open')
+    @patch("os.path.exists")
+    @patch("builtins.open")
     def test_create_from_env_with_dotenv(self, mock_open, mock_exists):
         """Test creating notifier from .env file"""
         mock_exists.return_value = True
         mock_open.return_value.__enter__.return_value.__iter__.return_value = [
             "SMS_PHONE_NUMBER=+1234567890\n",
-            "TEXTBELT_API_KEY=test_key\n"
+            "TEXTBELT_API_KEY=test_key\n",
         ]
 
         with patch.dict(os.environ, {}, clear=True):

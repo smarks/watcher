@@ -8,7 +8,7 @@ import os
 import requests
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 
 class SMSNotifier:
@@ -53,14 +53,14 @@ class SMSNotifier:
         try:
             # Prepare message with the actual URL that changed
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sms_message = f"WEBSITE CHANGE DETECTED\n"
+            sms_message = "WEBSITE CHANGE DETECTED\n"
             sms_message += f"Time: {timestamp}\n"
             sms_message += f"URL: {url}\n\n"
             sms_message += "Content changes detected."
 
             # Debug: Log the message being sent
             logging.info(f"Sending SMS message: {repr(sms_message)}")
-            
+
             # Send message via TextBelt API
             payload = {
                 "phone": self.phone_number,
@@ -70,9 +70,9 @@ class SMSNotifier:
 
             response = requests.post(self.api_url, data=payload, timeout=30)
             response.raise_for_status()
-            
+
             result = response.json()
-            
+
             if result.get("success"):
                 text_id = result.get("textId")
                 logging.info(f"SMS notification sent successfully. TextId: {text_id}")
@@ -108,7 +108,8 @@ class SMSNotifier:
             }
 
         try:
-            test_message = f"Test notification from URL Watcher at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            test_message = f"Test notification from URL Watcher at {timestamp}"
 
             payload = {
                 "phone": self.phone_number,
@@ -118,9 +119,9 @@ class SMSNotifier:
 
             response = requests.post(self.api_url, data=payload, timeout=30)
             response.raise_for_status()
-            
+
             result = response.json()
-            
+
             if result.get("success"):
                 return {
                     "success": True,

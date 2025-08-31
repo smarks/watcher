@@ -7,7 +7,7 @@ import unittest
 import tempfile
 import os
 import json
-from unittest.mock import patch, mock_open, MagicMock, Mock
+from unittest.mock import patch, MagicMock, Mock
 import requests
 from url_watcher import URLWatcher
 

@@ -2,9 +2,7 @@
 """
 Generate a simple coverage badge for README
 """
-import json
 import os
-import sys
 import subprocess
 import re
 
@@ -19,7 +17,7 @@ def get_current_coverage():
         )
         match = re.search(r"TOTAL.*?(\d+)%", result.stdout)
         return float(match.group(1)) if match else 0
-    except:
+    except Exception:
         return 0
 
 

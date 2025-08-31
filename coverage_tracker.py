@@ -47,7 +47,7 @@ class CoverageTracker:
         )
 
         if result.returncode != 0:
-            print(f"❌ Tests failed!")
+            print("❌ Tests failed!")
             print(result.stdout)
             print(result.stderr)
             sys.exit(1)
@@ -116,7 +116,11 @@ class CoverageTracker:
 
             # Look for runs that might have coverage artifacts
             for run in runs:
-                artifacts_url = f"https://api.github.com/repos/{self.github_repo}/actions/runs/{run['id']}/artifacts"
+                run_id = run["id"]
+                artifacts_url = (
+                    f"https://api.github.com/repos/{self.github_repo}"
+                    f"/actions/runs/{run_id}/artifacts"
+                )
                 artifacts_response = requests.get(artifacts_url, headers=headers)
 
                 if artifacts_response.status_code != 200:
@@ -214,12 +218,15 @@ class CoverageTracker:
             diff = baseline_total - current_total
             if diff > self.tolerance:
                 messages.append(
-                    f"❌ Total coverage declined significantly: {baseline_total}% → {current_total}% (-{diff}%)"
+                    f"❌ Total coverage declined significantly: "
+                    f"{baseline_total}% → {current_total}% (-{diff}%)"
                 )
                 is_acceptable = False
             else:
                 messages.append(
-                    f"⚠️  Total coverage declined slightly: {baseline_total}% → {current_total}% (-{diff}%) [within tolerance]"
+                    f"⚠️  Total coverage declined slightly: "
+                    f"{baseline_total}% → {current_total}% (-{diff}%) "
+                    f"[within tolerance]"
                 )
         elif current_total > baseline_total:
             diff = current_total - baseline_total
@@ -237,11 +244,14 @@ class CoverageTracker:
             if current_cov < baseline_cov:
                 diff = baseline_cov - current_cov
                 if diff > file_tolerance:
-                    messages.append(f"❌ {filename}: {baseline_cov}% → {current_cov}% (-{diff}%)")
+                    messages.append(
+                        f"❌ {filename}: {baseline_cov}% → " f"{current_cov}% (-{diff}%)"
+                    )
                     is_acceptable = False
                 else:
                     messages.append(
-                        f"⚠️  {filename}: {baseline_cov}% → {current_cov}% (-{diff}%) [within tolerance]"
+                        f"⚠️  {filename}: {baseline_cov}% → "
+                        f"{current_cov}% (-{diff}%) [within tolerance]"
                     )
             elif current_cov > baseline_cov:
                 diff = current_cov - baseline_cov
@@ -281,7 +291,8 @@ class CoverageTracker:
 
         print("\n" + comparison_message)
 
-        # Update baseline if coverage improved or maintained (and update_baseline is True)
+        # Update baseline if coverage improved or maintained
+        # (and update_baseline is True)
         if is_acceptable and update_baseline:
             if current_total >= baseline_data["total_coverage"]:
                 self.save_baseline(current_total, current_per_file)
@@ -289,7 +300,9 @@ class CoverageTracker:
 
         if not is_acceptable and fail_on_decline:
             print(
-                f"\n❌ Coverage regression detected! Previous: {baseline_data['total_coverage']}%, Current: {current_total}%"
+                f"\n❌ Coverage regression detected! "
+                f"Previous: {baseline_data['total_coverage']}%, "
+                f"Current: {current_total}%"
             )
             return False
 

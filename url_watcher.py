@@ -165,7 +165,7 @@ class URLWatcher:
 
 
 def main():
-    if len(sys.argv) < 2 or len(sys.argv) > 4:
+    if len(sys.argv) < 2:
         print("Usage: python url_watcher.py <URL> [--continuous] [--sms]")
         print("  Single check: python url_watcher.py <URL>")
         print("  Continuous:   python url_watcher.py <URL> --continuous")
@@ -176,8 +176,31 @@ def main():
         sys.exit(1)
 
     url = sys.argv[1]
-    continuous = "--continuous" in sys.argv[2:]
-    enable_sms = "--sms" in sys.argv[2:]
+    args = sys.argv[2:] if len(sys.argv) > 2 else []
+
+    # Check for invalid arguments and provide helpful error messages
+    valid_args = {"--continuous", "--sms"}
+    invalid_args = []
+    for arg in args:
+        if arg not in valid_args:
+            # Check for common mistakes
+            if arg.startswith("---") or arg.startswith("----"):
+                invalid_args.append(f"'{arg}' (did you mean '--continuous' or '--sms'?)")
+            elif arg in ["continuous", "-continuous", "---continuous", "----continuous"]:
+                invalid_args.append(f"'{arg}' (did you mean '--continuous'?)")
+            elif arg in ["sms", "-sms", "---sms", "----sms"]:
+                invalid_args.append(f"'{arg}' (did you mean '--sms'?)")
+            else:
+                invalid_args.append(f"'{arg}' (unknown argument)")
+
+    if invalid_args:
+        print(f"Error: Invalid argument(s): {', '.join(invalid_args)}")
+        print("\nUsage: python url_watcher.py <URL> [--continuous] [--sms]")
+        print("Valid arguments are: --continuous, --sms")
+        sys.exit(1)
+
+    continuous = "--continuous" in args
+    enable_sms = "--sms" in args
 
     # Initialize SMS notifier if requested
     sms_notifier = None
@@ -186,7 +209,8 @@ def main():
         if not sms_notifier.is_configured():
             print("⚠️  SMS notifications requested but not properly configured")
             print(
-                 "Set SMS_PHONE_NUMBER and TEXTBELT_API_KEY environment variables or add to .env file"
+                "Set SMS_PHONE_NUMBER and TEXTBELT_API_KEY environment "
+                "variables or add to .env file"
             )
         else:
             print("📱 SMS notifications enabled")
