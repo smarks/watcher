@@ -160,7 +160,7 @@ Sends an SMS notification about a URL change.
 notifier = SMSNotifier(phone_number="+1234567890", api_key="your_key")
 
 success = notifier.send_notification(
-    "https://example.com", 
+    "https://example.com",
     "Content changes detected"
 )
 
@@ -248,7 +248,7 @@ except Exception as e:
 notifier = SMSNotifier()
 if not notifier.is_configured():
     print("SMS not configured properly")
-    
+
 result = notifier.send_notification("https://example.com", "test")
 if not result:
     print("SMS sending failed - check logs for details")
@@ -294,6 +294,6 @@ The URL cache is stored as JSON:
 ## Performance Notes
 
 - **Randomized Intervals**: Continuous monitoring uses random intervals to avoid detection
-- **Content Hashing**: Quick hash comparison before expensive diff generation  
+- **Content Hashing**: Quick hash comparison before expensive diff generation
 - **Efficient Storage**: Only stores necessary data in cache files
 - **SMS Rate Limiting**: TextBelt has rate limits - avoid excessive notifications

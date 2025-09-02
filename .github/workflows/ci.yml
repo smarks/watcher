@@ -39,12 +39,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
@@ -52,65 +52,59 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+
     - name: Run tests with coverage
       run: |
         set -e
         python -m pytest --cov=. --cov-report=xml --cov-report=term-missing --cov-report=html -v
-    
+
     - name: Run coverage tracker
       run: |
         set -e
         python coverage_tracker.py
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
+
     - name: Generate coverage summary
       if: matrix.python-version == '3.11'
       run: |
         # Create coverage summary for job summary
+        echo "## 📊 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Get current coverage
+        CURRENT_COV=$(python -m pytest --cov=. --cov-report=term --quiet | grep TOTAL | awk '{print $4}' | sed 's/%//')
+
         if [ -f .coverage_baseline.json ]; then
-          python -c "
-import json
-import subprocess
-import re
-import os
+          # Get baseline coverage
+          BASELINE_COV=$(python -c "import json; print(json.load(open('.coverage_baseline.json'))['total_coverage'])")
 
-# Get current coverage
-result = subprocess.run(['python', '-m', 'pytest', '--cov=.', '--cov-report=term-missing', '--quiet'], capture_output=True, text=True)
-match = re.search(r'TOTAL.*?(\d+)%', result.stdout)
-current_cov = float(match.group(1)) if match else 0
+          # Calculate difference
+          DIFF=$(echo "$CURRENT_COV - $BASELINE_COV" | bc 2>/dev/null || echo "0")
 
-# Get baseline
-try:
-    with open('.coverage_baseline.json') as f:
-        baseline = json.load(f)
-    baseline_cov = baseline['total_coverage']
-except:
-    baseline_cov = current_cov
+          echo "- **Current Coverage**: ${CURRENT_COV}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Baseline Coverage**: ${BASELINE_COV}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Change**: ${DIFF}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-diff = current_cov - baseline_cov
-
-with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
-    f.write('\n## 📊 Coverage Summary\n\n')
-    f.write(f'- **Current Coverage**: {current_cov}%\n')
-    f.write(f'- **Baseline Coverage**: {baseline_cov}%\n')
-    f.write(f'- **Change**: {diff:+.1f}%\n\n')
-    
-    if diff >= 0:
-        f.write('✅ Coverage maintained or improved\n')
-    elif diff >= -2:
-        f.write('📊 Coverage within acceptable tolerance (2%)\n')
-    else:
-        f.write('⚠️ Significant coverage decline detected\n')
-"
+          # Add status based on difference
+          if (( $(echo "$DIFF >= 0" | bc -l) )); then
+            echo "✅ Coverage maintained or improved" >> $GITHUB_STEP_SUMMARY
+          elif (( $(echo "$DIFF >= -2" | bc -l) )); then
+            echo "📊 Coverage within acceptable tolerance (2%)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Significant coverage decline detected" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "- **Current Coverage**: ${CURRENT_COV}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Baseline**: Not available" >> $GITHUB_STEP_SUMMARY
         fi
-    
+
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.11'
       uses: codecov/codecov-action@v4
@@ -120,14 +114,14 @@ with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
         name: codecov-umbrella
         fail_ci_if_error: false
       continue-on-error: true
-    
+
     - name: Archive coverage reports
       if: matrix.python-version == '3.11'
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: htmlcov/
-    
+
     - name: Upload coverage baseline
       if: matrix.python-version == '3.11' && github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4

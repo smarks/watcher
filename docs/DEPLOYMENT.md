@@ -107,7 +107,7 @@ python url_watcher.py https://httpbin.org/uuid --sms
    TEXTBELT_API_KEY=your_production_api_key
    LOG_LEVEL=INFO
    EOF
-   
+
    chmod 600 /home/urlwatcher/watcher/.env
    ```
 
@@ -118,7 +118,7 @@ python url_watcher.py https://httpbin.org/uuid --sms
    Description=URL Watcher Service
    After=network.target
    Wants=network.target
-   
+
    [Service]
    Type=simple
    User=urlwatcher
@@ -130,7 +130,7 @@ python url_watcher.py https://httpbin.org/uuid --sms
    RestartSec=30
    StandardOutput=journal
    StandardError=journal
-   
+
    [Install]
    WantedBy=multi-user.target
    EOF
@@ -174,14 +174,14 @@ logging.basicConfig(
 def monitor_url(url, interval_min=60, interval_max=300):
     """Monitor a single URL in a separate thread"""
     logger = logging.getLogger(f'monitor-{url}')
-    
+
     try:
         sms_notifier = create_notifier_from_env()
         watcher = URLWatcher(
             storage_file=f"/home/urlwatcher/data/{url.replace('://', '_').replace('/', '_')}.json",
             sms_notifier=sms_notifier
         )
-        
+
         watcher.watch_continuously(url, interval_min, interval_max)
     except Exception as e:
         logger.error(f"Error monitoring {url}: {e}")
@@ -193,10 +193,10 @@ def main():
         "https://httpbin.org/uuid",
         "https://api.github.com/zen"
     ]
-    
+
     # Create data directory
     os.makedirs("/home/urlwatcher/data", exist_ok=True)
-    
+
     # Start monitoring threads
     threads = []
     for url in urls:
@@ -204,7 +204,7 @@ def main():
         thread.start()
         threads.append(thread)
         time.sleep(1)  # Stagger starts
-    
+
     # Keep main thread alive
     try:
         while True:
@@ -214,8 +214,8 @@ def main():
                 if not thread.is_alive():
                     logging.warning(f"Thread {i} died, restarting...")
                     new_thread = threading.Thread(
-                        target=monitor_url, 
-                        args=(urls[i],), 
+                        target=monitor_url,
+                        args=(urls[i],),
                         daemon=True
                     )
                     new_thread.start()
@@ -253,10 +253,10 @@ ExecStart=/home/urlwatcher/watcher/.venv/bin/python /home/urlwatcher/watcher/mul
    #!/bin/bash
    apt update && apt upgrade -y
    apt install -y python3 python3-pip python3-venv git
-   
+
    # Create service user
    useradd --system --create-home --shell /bin/bash urlwatcher
-   
+
    # Install application
    sudo -u urlwatcher bash << 'EOF'
    cd /home/urlwatcher
@@ -266,7 +266,7 @@ ExecStart=/home/urlwatcher/watcher/.venv/bin/python /home/urlwatcher/watcher/mul
    source .venv/bin/activate
    pip install -r requirements.txt
    EOF
-   
+
    # Create systemd service and start
    systemctl enable urlwatcher
    systemctl start urlwatcher
@@ -315,7 +315,7 @@ ExecStart=/home/urlwatcher/watcher/.venv/bin/python /home/urlwatcher/watcher/mul
 2. **Environment Variables**
    Set in Railway dashboard:
    - `SMS_PHONE_NUMBER`: Your phone number
-   - `TEXTBELT_API_KEY`: Your TextBelt API key  
+   - `TEXTBELT_API_KEY`: Your TextBelt API key
    - `TARGET_URL`: URL to monitor
 
 ## Container Deployment
@@ -372,7 +372,7 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
     command: ["python", "multi_monitor.py"]
-    
+
   # Optional: Add monitoring
   prometheus:
     image: prom/prometheus:latest
@@ -381,7 +381,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -481,7 +481,7 @@ data:
    # Use requests session for connection pooling
    import requests
    from requests.adapters import HTTPAdapter
-   
+
    class OptimizedURLWatcher(URLWatcher):
        def __init__(self, **kwargs):
            super().__init__(**kwargs)
@@ -489,7 +489,7 @@ data:
            adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20)
            self.session.mount('http://', adapter)
            self.session.mount('https://', adapter)
-       
+
        def _fetch_url_content(self, url):
            response = self.session.get(url, timeout=10)
            response.raise_for_status()
@@ -501,22 +501,22 @@ data:
    # Respect TextBelt rate limits
    import time
    from functools import wraps
-   
+
    class RateLimitedSMSNotifier(SMSNotifier):
        def __init__(self, *args, **kwargs):
            super().__init__(*args, **kwargs)
            self.last_sms_time = 0
            self.min_interval = 60  # Minimum 1 minute between SMS
-       
+
        def send_notification(self, url, message, subject=None):
            # Enforce rate limiting
            current_time = time.time()
            time_since_last = current_time - self.last_sms_time
-           
+
            if time_since_last < self.min_interval:
                sleep_time = self.min_interval - time_since_last
                time.sleep(sleep_time)
-           
+
            result = super().send_notification(url, message, subject)
            self.last_sms_time = time.time()
            return result
@@ -527,9 +527,9 @@ data:
 1. **Health Check Endpoint**
    ```python
    from flask import Flask, jsonify
-   
+
    app = Flask(__name__)
-   
+
    @app.route('/health')
    def health_check():
        """Health check endpoint"""
@@ -537,7 +537,7 @@ data:
            # Test TextBelt configuration
            notifier = create_notifier_from_env()
            is_configured = notifier.is_configured()
-           
+
            return jsonify({
                'status': 'healthy' if is_configured else 'degraded',
                'sms_configured': is_configured,
@@ -548,7 +548,7 @@ data:
                'status': 'unhealthy',
                'error': str(e)
            }), 503
-   
+
    @app.route('/metrics')
    def metrics():
        """Prometheus metrics endpoint"""
@@ -579,7 +579,7 @@ cp /home/urlwatcher/watcher/.env.example "$BACKUP_DIR/config_template_$DATE.env"
 # Upload to cloud storage (example with rclone)
 rclone copy "$BACKUP_DIR/cache_backup_$DATE.tar.gz" remote:urlwatcher-backups/
 
-# Clean old backups (keep last 30 days)  
+# Clean old backups (keep last 30 days)
 find "$BACKUP_DIR" -name "*.tar.gz" -mtime +30 -delete
 ```
 

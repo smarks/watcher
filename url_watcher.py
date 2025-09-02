@@ -4,22 +4,26 @@ URL Content Monitor
 Monitors URL content changes and reports differences
 """
 
-import sys
-import requests
 import hashlib
 import json
-import os
-import time
-import random
 import logging
+import os
+import random
+import sys
+import time
 from datetime import datetime
 from difflib import unified_diff
 from typing import Optional
+
+import requests
+
 from sms_notifier import SMSNotifier, create_notifier_from_env
 
 
 class URLWatcher:
-    def __init__(self, storage_file="url_cache.json", sms_notifier: Optional[SMSNotifier] = None):
+    def __init__(
+        self, storage_file="url_cache.json", sms_notifier: Optional[SMSNotifier] = None
+    ):
         self.storage_file = storage_file
         self.cache = self._load_cache()
         self.sms_notifier = sms_notifier
@@ -70,7 +74,10 @@ class URLWatcher:
                 "last_checked": datetime.now().isoformat(),
             }
             self._save_cache()
-            return False, "First time checking this URL - no previous content to compare"
+            return (
+                False,
+                "First time checking this URL - no previous content to compare",
+            )
 
         previous_content = self.cache[url]["content"]
         previous_hash = self.cache[url]["hash"]
@@ -138,7 +145,10 @@ class URLWatcher:
 
         try:
             while True:
-                print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Checking URL...")
+                print(
+                    f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                    f"Checking URL..."
+                )
 
                 try:
                     changed, difference = self.check_url(url)
@@ -185,8 +195,15 @@ def main():
         if arg not in valid_args:
             # Check for common mistakes
             if arg.startswith("---") or arg.startswith("----"):
-                invalid_args.append(f"'{arg}' (did you mean '--continuous' or '--sms'?)")
-            elif arg in ["continuous", "-continuous", "---continuous", "----continuous"]:
+                invalid_args.append(
+                    f"'{arg}' (did you mean '--continuous' or '--sms'?)"
+                )
+            elif arg in [
+                "continuous",
+                "-continuous",
+                "---continuous",
+                "----continuous",
+            ]:
                 invalid_args.append(f"'{arg}' (did you mean '--continuous'?)")
             elif arg in ["sms", "-sms", "---sms", "----sms"]:
                 invalid_args.append(f"'{arg}' (did you mean '--sms'?)")

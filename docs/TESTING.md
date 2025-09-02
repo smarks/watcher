@@ -156,28 +156,28 @@ from your_module import YourClass
 
 class TestYourClass(unittest.TestCase):
     """Test cases for YourClass"""
-    
+
     def setUp(self):
         """Set up test fixtures before each test method"""
         self.test_data = "example"
         self.mock_object = Mock()
-    
+
     def tearDown(self):
         """Clean up after each test method"""
         # Remove test files, reset state, etc.
         pass
-    
+
     def test_basic_functionality(self):
         """Test basic functionality - descriptive docstring"""
         # Arrange
         expected_result = "expected"
-        
+
         # Act
         actual_result = your_function("input")
-        
+
         # Assert
         self.assertEqual(actual_result, expected_result)
-    
+
     def test_error_handling(self):
         """Test error handling"""
         with self.assertRaises(ValueError):
@@ -200,11 +200,11 @@ def test_url_fetch(self, mock_get):
     mock_response.text = "<html>Test content</html>"
     mock_response.raise_for_status.return_value = None
     mock_get.return_value = mock_response
-    
+
     # Test the function
     watcher = URLWatcher()
     content = watcher._fetch_url_content("http://example.com")
-    
+
     # Verify
     self.assertEqual(content, "<html>Test content</html>")
     mock_get.assert_called_once_with("http://example.com", timeout=10)
@@ -220,11 +220,11 @@ def test_sns_functionality(self, mock_boto_client):
     mock_client = Mock()
     mock_client.publish.return_value = {'MessageId': 'test-123'}
     mock_boto_client.return_value = mock_client
-    
+
     # Test SMS notification
     notifier = SMSNotifier(topic_arn="arn:aws:sns:us-east-1:123456789012:test")
     result = notifier.send_notification("http://example.com", "test message")
-    
+
     # Verify
     self.assertTrue(result)
     mock_client.publish.assert_called_once()
@@ -238,10 +238,10 @@ def test_sns_functionality(self, mock_boto_client):
 def test_cache_loading(self, mock_exists, mock_file):
     """Test cache loading with mocked file operations"""
     mock_exists.return_value = True
-    
+
     watcher = URLWatcher()
     cache = watcher._load_cache()
-    
+
     self.assertEqual(cache, {"test": "data"})
     mock_file.assert_called_once_with(watcher.storage_file, 'r')
 ```
@@ -259,12 +259,12 @@ class TestWithTempFiles(unittest.TestCase):
         """Create temporary files for testing"""
         self.temp_dir = tempfile.mkdtemp()
         self.temp_cache = os.path.join(self.temp_dir, "test_cache.json")
-    
+
     def tearDown(self):
         """Clean up temporary files"""
         import shutil
         shutil.rmtree(self.temp_dir)
-    
+
     def test_with_temp_file(self):
         """Test functionality with temporary file"""
         watcher = URLWatcher(storage_file=self.temp_cache)
@@ -287,13 +287,13 @@ class TestWithFixtures(unittest.TestCase):
         </body>
         </html>
         """
-        
+
         cls.sample_json = {
             "id": 123,
             "name": "Test Item",
             "timestamp": "2025-07-29T16:45:32Z"
         }
-    
+
     def test_html_parsing(self):
         """Test HTML parsing with fixture data"""
         # Use self.sample_html in test
@@ -317,7 +317,7 @@ class TestWithLocalServer(unittest.TestCase):
         cls.port = 8888
         cls.server_thread = None
         cls._start_server()
-    
+
     @classmethod
     def _start_server(cls):
         """Start HTTP server in background thread"""
@@ -326,22 +326,22 @@ class TestWithLocalServer(unittest.TestCase):
             with socketserver.TCPServer(("", cls.port), handler) as httpd:
                 cls.httpd = httpd
                 httpd.serve_forever()
-        
+
         cls.server_thread = threading.Thread(target=run_server, daemon=True)
         cls.server_thread.start()
         sleep(0.5)  # Give server time to start
-    
+
     @classmethod
     def tearDownClass(cls):
         """Stop local HTTP server"""
         if hasattr(cls, 'httpd'):
             cls.httpd.shutdown()
-    
+
     def test_local_server_monitoring(self):
         """Test monitoring of local HTTP server"""
         watcher = URLWatcher()
         changed, diff = watcher.check_url(f"http://localhost:{self.port}")
-        
+
         # First check should be "no change" (first time)
         self.assertFalse(changed)
 ```
@@ -358,7 +358,7 @@ class TestWithDatabase(unittest.TestCase):
         self.db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
         self.db_path = self.db_file.name
         self.db_file.close()
-        
+
         # Initialize test database
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
@@ -369,12 +369,12 @@ class TestWithDatabase(unittest.TestCase):
             )
         """)
         self.conn.commit()
-    
+
     def tearDown(self):
         """Clean up test database"""
         self.conn.close()
         os.unlink(self.db_path)
-    
+
     def test_database_operations(self):
         """Test database operations"""
         # Test database functionality
@@ -394,13 +394,13 @@ def time_test(func):
         start_time = time.time()
         result = func(self)
         end_time = time.time()
-        
+
         execution_time = end_time - start_time
         print(f"{func.__name__} took {execution_time:.4f} seconds")
-        
+
         # Assert performance requirements
         self.assertLess(execution_time, 1.0, "Test took too long")
-        
+
         return result
     return wrapper
 
@@ -409,14 +409,14 @@ class TestPerformance(unittest.TestCase):
     def test_url_checking_performance(self):
         """Test URL checking performance"""
         watcher = URLWatcher()
-        
+
         # Test with mocked fast response
         with patch('requests.get') as mock_get:
             mock_response = Mock()
             mock_response.text = "test content"
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
-            
+
             # This should complete quickly
             changed, diff = watcher.check_url("http://example.com")
 ```
@@ -456,17 +456,17 @@ def test_timestamp_generation(self, mock_datetime):
 def test_error_conditions(self):
     """Test various error conditions"""
     watcher = URLWatcher()
-    
+
     # Test network errors
     with patch('requests.get', side_effect=requests.ConnectionError()):
         with self.assertRaises(Exception):
             watcher.check_url("http://example.com")
-    
+
     # Test timeout errors
     with patch('requests.get', side_effect=requests.Timeout()):
         with self.assertRaises(Exception):
             watcher.check_url("http://example.com")
-    
+
     # Test HTTP errors
     mock_response = Mock()
     mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
@@ -497,17 +497,17 @@ def test_environment_configuration(self):
 ```python
 class URLWatcherTestCase(unittest.TestCase):
     """Base test case with custom assertions for URL Watcher"""
-    
+
     def assertURLChanged(self, watcher, url, expected_change=True):
         """Custom assertion for URL change detection"""
         changed, diff = watcher.check_url(url)
-        
+
         if expected_change:
             self.assertTrue(changed, f"Expected {url} to have changed")
             self.assertIsNotNone(diff, "Expected diff content for changed URL")
         else:
             self.assertFalse(changed, f"Expected {url} to be unchanged")
-    
+
     def assertSMSConfigured(self, notifier):
         """Custom assertion for SMS configuration"""
         self.assertTrue(notifier.is_configured(), "SMS notifier not properly configured")
@@ -565,24 +565,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install coverage
-    
+
     - name: Run tests with coverage
       run: |
         coverage run -m unittest discover -s . -p "test_*.py"
         coverage report
         coverage xml
-    
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

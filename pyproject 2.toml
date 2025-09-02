@@ -26,7 +26,7 @@ source = ["."]
 omit = [
     "venv/*",
     "test_*",
-    "*/venv/*", 
+    "*/venv/*",
     "*/test_*",
     "coverage_tracker.py",
     "integration_tests.py",

@@ -28,10 +28,10 @@ A simple Python tool that monitors websites for content changes and sends SMS no
    ```bash
    # Single check
    python url_watcher.py https://example.com
-   
+
    # Continuous monitoring
    python url_watcher.py https://example.com --continuous
-   
+
    # With SMS alerts
    python url_watcher.py https://example.com --sms
    ```

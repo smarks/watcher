@@ -3,9 +3,11 @@
 Test script for URL watcher functionality
 """
 
-import time
-import requests
 import os
+import time
+
+import requests
+
 from url_watcher import URLWatcher
 
 

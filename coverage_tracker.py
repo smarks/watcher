@@ -6,18 +6,21 @@ and warns/fails when coverage declines.
 
 import json
 import os
-import sys
-import subprocess
 import re
-import requests
+import subprocess
+import sys
 from datetime import datetime
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
+
+import requests
 
 
 class CoverageTracker:
     """Tracks code coverage over time and prevents regression"""
 
-    def __init__(self, baseline_file: str = ".coverage_baseline.json", tolerance: float = 2.0):
+    def __init__(
+        self, baseline_file: str = ".coverage_baseline.json", tolerance: float = 2.0
+    ):
         self.baseline_file = baseline_file
         self.tolerance = tolerance  # Allow up to 2% decline before failing
         self.github_token = os.environ.get("GITHUB_TOKEN")
@@ -100,7 +103,7 @@ class CoverageTracker:
                 "Accept": "application/vnd.github.v3+json",
             }
 
-            params = {
+            params: Dict[str, Any] = {
                 "branch": "main",
                 "status": "completed",
                 "conclusion": "success",
@@ -131,7 +134,9 @@ class CoverageTracker:
                 # Look for coverage baseline artifact
                 for artifact in artifacts:
                     if artifact["name"] == "coverage-baseline":
-                        return self._download_artifact(artifact["archive_download_url"], headers)
+                        return self._download_artifact(
+                            artifact["archive_download_url"], headers
+                        )
 
             print("ℹ️  No previous coverage baseline found in GitHub artifacts")
             return False
@@ -142,8 +147,8 @@ class CoverageTracker:
 
     def _download_artifact(self, download_url: str, headers: dict) -> bool:
         """Download and extract the coverage baseline artifact"""
-        import zipfile
         import tempfile
+        import zipfile
 
         try:
             # Download the artifact zip
@@ -199,7 +204,10 @@ class CoverageTracker:
             json.dump(baseline_data, f, indent=2)
 
     def compare_coverage(
-        self, current_total: float, current_per_file: Dict[str, float], baseline_data: Dict
+        self,
+        current_total: float,
+        current_per_file: Dict[str, float],
+        baseline_data: Dict,
     ) -> Tuple[bool, str]:
         """
         Compare current coverage with baseline
@@ -231,13 +239,16 @@ class CoverageTracker:
         elif current_total > baseline_total:
             diff = current_total - baseline_total
             messages.append(
-                f"✅ Total coverage improved: {baseline_total}% → {current_total}% (+{diff}%)"
+                f"✅ Total coverage improved: {baseline_total}% → "
+                f"{current_total}% (+{diff}%)"
             )
         else:
             messages.append(f"📊 Total coverage maintained: {current_total}%")
 
         # Check per-file coverage (use smaller tolerance for individual files)
-        file_tolerance = max(1.0, self.tolerance / 2)  # At least 1%, or half the total tolerance
+        file_tolerance = max(
+            1.0, self.tolerance / 2
+        )  # At least 1%, or half the total tolerance
         for filename, current_cov in current_per_file.items():
             baseline_cov = baseline_per_file.get(filename, 0)
 
@@ -255,11 +266,15 @@ class CoverageTracker:
                     )
             elif current_cov > baseline_cov:
                 diff = current_cov - baseline_cov
-                messages.append(f"✅ {filename}: {baseline_cov}% → {current_cov}% (+{diff}%)")
+                messages.append(
+                    f"✅ {filename}: {baseline_cov}% → {current_cov}% (+{diff}%)"
+                )
 
         return is_acceptable, "\n".join(messages)
 
-    def run_check(self, fail_on_decline: bool = True, update_baseline: bool = True) -> bool:
+    def run_check(
+        self, fail_on_decline: bool = True, update_baseline: bool = True
+    ) -> bool:
         """
         Run coverage check
 
@@ -339,7 +354,9 @@ def main():
         help="Don't update baseline",
     )
     parser.add_argument(
-        "--reset-baseline", action="store_true", help="Reset the baseline to current coverage"
+        "--reset-baseline",
+        action="store_true",
+        help="Reset the baseline to current coverage",
     )
     parser.add_argument(
         "--tolerance",
