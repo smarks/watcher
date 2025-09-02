@@ -4,11 +4,12 @@ SMS Notification Module for URL Watcher
 Sends SMS notifications via TextBelt API when URL changes are detected
 """
 
-import os
-import requests
 import logging
+import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict, Optional
+
+import requests
 
 
 class SMSNotifier:
@@ -16,8 +17,8 @@ class SMSNotifier:
 
     def __init__(
         self,
-        phone_number: str = None,
-        api_key: str = None,
+        phone_number: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         """
         Initialize SMS notifier
@@ -34,7 +35,9 @@ class SMSNotifier:
         """Check if SMS notifications are properly configured"""
         return self.phone_number is not None and self.api_key is not None
 
-    def send_notification(self, url: str, message: str, subject: str = None) -> bool:
+    def send_notification(
+        self, url: str, message: str, subject: Optional[str] = None
+    ) -> bool:
         """
         Send SMS notification about URL change
 
@@ -134,7 +137,8 @@ class SMSNotifier:
             else:
                 return {
                     "success": False,
-                    "error": f"TextBelt API error: {result.get('error', 'Unknown error')}",
+                    "error": f"TextBelt API error: "
+                    f"{result.get('error', 'Unknown error')}",
                 }
 
         except requests.exceptions.RequestException as e:
@@ -165,7 +169,8 @@ def create_notifier_from_env(load_dotenv: bool = True) -> SMSNotifier:
                         line = line.strip()
                         if line and not line.startswith("#") and "=" in line:
                             key, value = line.split("=", 1)
-                            # Only set if not already in environment (allows test override)
+                            # Only set if not already in environment
+                            # (allows test override)
                             if key.strip() not in os.environ:
                                 os.environ[key.strip()] = value.strip()
             except Exception as e:

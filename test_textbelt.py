@@ -3,8 +3,9 @@
 Test script for TextBelt SMS integration
 """
 
-from sms_notifier import create_notifier_from_env
 import logging
+
+from sms_notifier import create_notifier_from_env
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

@@ -3,17 +3,18 @@
 Unit tests for URL Watcher
 """
 
-import unittest
-import tempfile
-import os
 import json
-from unittest.mock import patch, MagicMock, Mock
+import os
+import tempfile
+import unittest
+from unittest.mock import MagicMock, Mock, patch
+
 import requests
+
 from url_watcher import URLWatcher
 
 
 class TestURLWatcher(unittest.TestCase):
-
     def setUp(self):
         self.temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         self.temp_file.close()
@@ -103,7 +104,9 @@ class TestURLWatcher(unittest.TestCase):
         self.assertFalse(changed)
         self.assertIn("First time checking", difference)
         self.assertIn(self.test_url, self.watcher.cache)
-        self.assertEqual(self.watcher.cache[self.test_url]["content"], "Initial content")
+        self.assertEqual(
+            self.watcher.cache[self.test_url]["content"], "Initial content"
+        )
 
     @patch("url_watcher.URLWatcher._fetch_url_content")
     def test_check_url_no_change(self, mock_fetch):
@@ -233,7 +236,9 @@ Line 5"""
     @patch("time.sleep")
     @patch("builtins.print")
     @patch("requests.get")
-    def test_watch_continuously_keyboard_interrupt(self, mock_get, mock_print, mock_sleep):
+    def test_watch_continuously_keyboard_interrupt(
+        self, mock_get, mock_print, mock_sleep
+    ):
         """Test watch_continuously stops on KeyboardInterrupt"""
         mock_response = Mock()
         mock_response.text = "Content"
@@ -253,7 +258,8 @@ Line 5"""
     @patch("requests.get")
     def test_watch_continuously_with_changes(self, mock_get, mock_print, mock_sleep):
         """Test watch_continuously detects changes"""
-        # Setup responses - first call returns initial content, second returns changed content
+        # Setup responses - first call returns initial content,
+        # second returns changed content
         initial_response = Mock()
         initial_response.text = "Initial content"
         initial_response.raise_for_status.return_value = None
@@ -279,7 +285,9 @@ Line 5"""
     @patch("time.sleep")
     @patch("builtins.print")
     @patch("requests.get")
-    def test_watch_continuously_handles_exceptions(self, mock_get, mock_print, mock_sleep):
+    def test_watch_continuously_handles_exceptions(
+        self, mock_get, mock_print, mock_sleep
+    ):
         """Test watch_continuously handles request exceptions"""
         # First call succeeds, second raises exception
         initial_response = Mock()
@@ -321,7 +329,9 @@ class TestMainCLI(unittest.TestCase):
             main()
 
         self.assertEqual(cm.exception.code, 1)
-        mock_print.assert_any_call("Usage: python url_watcher.py <URL> [--continuous] [--sms]")
+        mock_print.assert_any_call(
+            "Usage: python url_watcher.py <URL> [--continuous] [--sms]"
+        )
 
     @patch("sys.argv", ["url_watcher.py", "url", "extra", "args", "too", "many"])
     @patch("builtins.print")
@@ -333,7 +343,9 @@ class TestMainCLI(unittest.TestCase):
             main()
 
         self.assertEqual(cm.exception.code, 1)
-        mock_print.assert_any_call("Usage: python url_watcher.py <URL> [--continuous] [--sms]")
+        mock_print.assert_any_call(
+            "\nUsage: python url_watcher.py <URL> [--continuous] [--sms]"
+        )
 
     @patch("sys.argv", ["url_watcher.py", "http://example.com"])
     @patch("requests.get")
@@ -395,7 +407,9 @@ class TestMainCLI(unittest.TestCase):
 
             main()
 
-            mock_watcher.watch_continuously.assert_called_once_with("http://example.com")
+            mock_watcher.watch_continuously.assert_called_once_with(
+                "http://example.com"
+            )
 
     @patch("sys.argv", ["url_watcher.py", "http://example.com", "--sms"])
     @patch("builtins.print")

@@ -11,7 +11,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -54,49 +54,40 @@ jobs:
         else
           MAIN_COVERAGE="unknown"
         fi
-        
-        # Get current coverage from pytest output
-        CURRENT_COVERAGE=$(python -c "
-        import subprocess
-        result = subprocess.run(['python', '-m', 'pytest', '--cov=.', '--cov-report=term-missing', '--quiet'], capture_output=True, text=True)
-        import re
-        match = re.search(r'TOTAL.*?(\d+)%', result.stdout)
-        print(match.group(1) if match else '0')
-        ")
-        
+
+        # Get current coverage from the last pytest run
+        CURRENT_COVERAGE=$(python -m pytest --cov=. --cov-report=term --quiet | grep TOTAL | awk '{print $4}' | sed 's/%//')
+
         echo "MAIN_COVERAGE=$MAIN_COVERAGE" >> $GITHUB_OUTPUT
         echo "CURRENT_COVERAGE=$CURRENT_COVERAGE" >> $GITHUB_OUTPUT
-        
-        # Create GitHub Job Summary using Python for comparisons
+
+        # Create GitHub Job Summary
+        echo "# 📊 Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
         if [ "$MAIN_COVERAGE" != "unknown" ]; then
-          python -c "
-import os
+          echo "| Branch | Coverage | Change |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| main | ${MAIN_COVERAGE}% | baseline |" >> $GITHUB_STEP_SUMMARY
 
-main_cov = float('$MAIN_COVERAGE')
-current_cov = float('$CURRENT_COVERAGE')
-diff = current_cov - main_cov
+          # Calculate difference using bc or awk
+          DIFF=$(echo "$CURRENT_COVERAGE - $MAIN_COVERAGE" | bc 2>/dev/null || echo "$CURRENT_COVERAGE - $MAIN_COVERAGE" | awk '{print $1 - $3}')
 
-with open(os.environ['GITHUB_STEP_SUMMARY'], 'w') as f:
-    f.write('# 📊 Coverage Report\n\n')
-    f.write('| Branch | Coverage | Change |\n')
-    f.write('|--------|----------|--------|\n')
-    f.write(f'| main | {main_cov}% | baseline |\n')
-    f.write(f'| ${{ github.head_ref }} | {current_cov}% | {diff:+.1f}% |\n\n')
-    
-    if diff > 2:
-        f.write(f'✅ **Coverage improved significantly** by {diff:.1f}%\n')
-    elif diff > 0:
-        f.write(f'✅ **Coverage improved** by {diff:.1f}%\n')
-    elif diff >= -2:
-        f.write(f'📊 **Coverage maintained** ({diff:+.1f}% change, within 2% tolerance)\n\n')
-        f.write('> ✅ **Within tolerance** - small coverage changes are acceptable.\n')
-    else:
-        f.write(f'⚠️ **Coverage declined significantly** by {abs(diff):.1f}%\n\n')
-        f.write('> ❌ **Significant regression detected!** This exceeds the 2% tolerance.\n')
-"
-        else
-          echo "# 📊 Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "| PR | ${CURRENT_COVERAGE}% | ${DIFF}% |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Add status message based on difference
+          if (( $(echo "$DIFF > 2" | bc -l) )); then
+            echo "✅ **Coverage improved significantly**" >> $GITHUB_STEP_SUMMARY
+          elif (( $(echo "$DIFF > 0" | bc -l) )); then
+            echo "✅ **Coverage improved**" >> $GITHUB_STEP_SUMMARY
+          elif (( $(echo "$DIFF >= -2" | bc -l) )); then
+            echo "📊 **Coverage maintained** (within 2% tolerance)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Coverage declined significantly**" >> $GITHUB_STEP_SUMMARY
+            echo "> ❌ **Significant regression detected!** This exceeds the 2% tolerance." >> $GITHUB_STEP_SUMMARY
+          fi
+        else
           echo "⚠️ **No baseline available** - this may be the first run." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Current Coverage |" >> $GITHUB_STEP_SUMMARY
@@ -104,65 +95,8 @@ with open(os.environ['GITHUB_STEP_SUMMARY'], 'w') as f:
           echo "| ${CURRENT_COVERAGE}% |" >> $GITHUB_STEP_SUMMARY
         fi
 
-    - name: Comment PR with coverage results
-      if: github.event_name == 'pull_request' && steps.coverage.outputs.MAIN_COVERAGE != 'unknown'
-      continue-on-error: true
-      uses: actions/github-script@v7
-      with:
-        script: |
-          try {
-            const mainCoverage = '${{ steps.coverage.outputs.MAIN_COVERAGE }}';
-            const currentCoverage = '${{ steps.coverage.outputs.CURRENT_COVERAGE }}';
-            const diff = parseFloat(currentCoverage) - parseFloat(mainCoverage);
-            
-            console.log(`Coverage data: main=${mainCoverage}%, current=${currentCoverage}%, diff=${diff.toFixed(1)}%`);
-            
-            let emoji, status, message;
-            if (diff > 2) {
-              emoji = "✅";
-              status = "improved significantly";
-              message = `Coverage ${status} by ${diff.toFixed(1)}%`;
-            } else if (diff > 0) {
-              emoji = "✅";
-              status = "improved";
-              message = `Coverage ${status} by ${diff.toFixed(1)}%`;
-            } else if (diff >= -2) {
-              emoji = "📊";
-              status = "maintained";
-              message = `Coverage ${status} (${diff.toFixed(1)}% change, within tolerance)`;
-            } else {
-              emoji = "⚠️";
-              status = "declined significantly";
-              message = `Coverage ${status} by ${Math.abs(diff).toFixed(1)}%`;
-            }
-            
-            const body = `## ${emoji} Coverage Report
-            
-| Branch | Coverage |
-|--------|----------|
-| main | ${mainCoverage}% |
-| ${context.payload.pull_request.head.ref} | ${currentCoverage}% |
-
-**${message}** (${mainCoverage}% → ${currentCoverage}%)
-
-${diff < -2 ? '❌ **Significant regression detected!** This exceeds the 2% tolerance.' : ''}${diff >= -2 && diff < 0 ? '✅ **Within tolerance** - small coverage changes are acceptable.' : ''}`;
-            
-            console.log(`Attempting to comment on PR #${context.payload.pull_request.number}`);
-            
-            const result = await github.rest.issues.createComment({
-              issue_number: context.payload.pull_request.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
-            
-            console.log(`Comment created successfully: ${result.data.html_url}`);
-            
-          } catch (error) {
-            console.error('Error creating PR comment:', error);
-            console.error('Context payload:', JSON.stringify(context.payload, null, 2));
-            // Don't fail the workflow if commenting fails
-          }
+    # PR commenting removed - use GitHub Actions summary instead
+    # The coverage report is available in the workflow summary
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4

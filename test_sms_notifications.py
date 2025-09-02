@@ -3,10 +3,11 @@
 Test suite for SMS notification functionality using TextBelt API
 """
 
-import unittest
-import os
 import logging
+import os
+import unittest
 from unittest.mock import Mock, patch
+
 import requests
 
 from sms_notifier import SMSNotifier, create_notifier_from_env
@@ -35,7 +36,8 @@ class TestSMSNotifier(unittest.TestCase):
     def test_initialization_from_env(self):
         """Test SMSNotifier initialization from environment variables"""
         with patch.dict(
-            os.environ, {"SMS_PHONE_NUMBER": self.phone_number, "TEXTBELT_API_KEY": self.api_key}
+            os.environ,
+            {"SMS_PHONE_NUMBER": self.phone_number, "TEXTBELT_API_KEY": self.api_key},
         ):
             notifier = SMSNotifier()
             self.assertEqual(notifier.phone_number, self.phone_number)
@@ -65,7 +67,9 @@ class TestSMSNotifier(unittest.TestCase):
         mock_post.return_value = mock_response
 
         notifier = SMSNotifier(phone_number=self.phone_number, api_key=self.api_key)
-        result = notifier.send_notification(url="http://example.com", message="Content changed")
+        result = notifier.send_notification(
+            url="http://example.com", message="Content changed"
+        )
 
         self.assertTrue(result)
         mock_post.assert_called_once()
@@ -114,7 +118,9 @@ class TestSMSNotifier(unittest.TestCase):
             result = notifier.send_notification("http://example.com", "Some changes")
 
             self.assertFalse(result)
-            mock_log.assert_called_with("Unexpected error sending SMS: Some generic error")
+            mock_log.assert_called_with(
+                "Unexpected error sending SMS: Some generic error"
+            )
 
     @patch("requests.post")
     def test_test_notification_success(self, mock_post):
@@ -135,7 +141,10 @@ class TestSMSNotifier(unittest.TestCase):
     def test_test_notification_failure(self, mock_post):
         """Test failed test notification"""
         mock_response = Mock()
-        mock_response.json.return_value = {"success": False, "error": "Invalid phone number"}
+        mock_response.json.return_value = {
+            "success": False,
+            "error": "Invalid phone number",
+        }
         mock_response.raise_for_status.return_value = None
         mock_post.return_value = mock_response
 
@@ -233,7 +242,9 @@ class TestURLWatcherSMSIntegration(unittest.TestCase):
         mock_notifier.send_notification.return_value = True
 
         # Create watcher with SMS notifier
-        watcher = URLWatcher(storage_file=self.test_cache_file, sms_notifier=mock_notifier)
+        watcher = URLWatcher(
+            storage_file=self.test_cache_file, sms_notifier=mock_notifier
+        )
 
         # First check - should not send SMS (first time)
         changed, diff = watcher.check_url("http://example.com")
@@ -246,7 +257,9 @@ class TestURLWatcherSMSIntegration(unittest.TestCase):
 
         # Should detect change and send SMS
         self.assertTrue(changed)
-        mock_notifier.send_notification.assert_called_once_with("http://example.com", diff)
+        mock_notifier.send_notification.assert_called_once_with(
+            "http://example.com", diff
+        )
 
     @patch("requests.get")
     def test_url_watcher_without_sms_notifier(self, mock_get):
@@ -275,7 +288,9 @@ class TestURLWatcherSMSIntegration(unittest.TestCase):
         mock_notifier.is_configured.return_value = True
         mock_notifier.send_notification.side_effect = Exception("SMS failed")
 
-        watcher = URLWatcher(storage_file=self.test_cache_file, sms_notifier=mock_notifier)
+        watcher = URLWatcher(
+            storage_file=self.test_cache_file, sms_notifier=mock_notifier
+        )
 
         # First check
         watcher.check_url("http://example.com")

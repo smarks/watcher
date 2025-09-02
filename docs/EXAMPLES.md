@@ -32,8 +32,8 @@ Difference:
 --- https://httpbin.org/uuid (previous)
 +++ https://httpbin.org/uuid (current)
 @@ -3,5 +3,5 @@
-   "origin": "203.0.113.12", 
--  "url": "https://httpbin.org/uuid", 
+   "origin": "203.0.113.12",
+-  "url": "https://httpbin.org/uuid",
 -  "uuid": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 +  "url": "https://httpbin.org/uuid",
 +  "uuid": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
@@ -108,11 +108,11 @@ from url_watcher import URLWatcher
 
 def main():
     watcher = URLWatcher()
-    
+
     # Monitor every 10-30 seconds (good for testing)
     watcher.watch_continuously(
-        "http://localhost:8080", 
-        min_interval=10, 
+        "http://localhost:8080",
+        min_interval=10,
         max_interval=30
     )
 
@@ -139,10 +139,10 @@ from url_watcher import URLWatcher
 
 def monitor_multiple_urls(urls, interval=60):
     watcher = URLWatcher()
-    
+
     while True:
         print(f"\n=== Checking {len(urls)} URLs at {time.strftime('%H:%M:%S')} ===")
-        
+
         for url in urls:
             try:
                 changed, diff = watcher.check_url(url)
@@ -156,7 +156,7 @@ def monitor_multiple_urls(urls, interval=60):
                     print(f"❌ No change: {url}")
             except Exception as e:
                 print(f"❌ ERROR: {url} - {e}")
-        
+
         print(f"\nSleeping for {interval} seconds...")
         time.sleep(interval)
 
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         "https://api.github.com/zen",
         "https://httpbin.org/delay/1"
     ]
-    
+
     monitor_multiple_urls(urls_to_monitor, interval=30)
 ```
 
@@ -187,17 +187,17 @@ class FilteredURLWatcher(URLWatcher):
     def __init__(self, css_selector=None, **kwargs):
         super().__init__(**kwargs)
         self.css_selector = css_selector
-    
+
     def _fetch_url_content(self, url):
         """Override to filter content using CSS selector"""
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        
+
         if self.css_selector:
             soup = BeautifulSoup(response.text, 'html.parser')
             elements = soup.select(self.css_selector)
             return '\n'.join(str(el) for el in elements)
-        
+
         return response.text
 
 # Usage examples
@@ -205,11 +205,11 @@ if __name__ == "__main__":
     # Monitor only H1 tags
     h1_watcher = FilteredURLWatcher(css_selector="h1")
     changed, diff = h1_watcher.check_url("https://example.com")
-    
+
     # Monitor specific div
     content_watcher = FilteredURLWatcher(css_selector="div.content")
     changed, diff = content_watcher.check_url("https://news.ycombinator.com")
-    
+
     print(f"Changed: {changed}")
     if diff:
         print(f"Diff: {diff}")
@@ -236,38 +236,38 @@ class PriceWatcher(URLWatcher):
     def __init__(self, price_selector, **kwargs):
         super().__init__(**kwargs)
         self.price_selector = price_selector
-    
+
     def _fetch_url_content(self, url):
         """Extract only price information"""
         response = requests.get(url, timeout=10, headers={
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         })
         response.raise_for_status()
-        
+
         soup = BeautifulSoup(response.text, 'html.parser')
         price_element = soup.select_one(self.price_selector)
-        
+
         if price_element:
             price_text = price_element.get_text().strip()
             # Extract numeric price
             price_match = re.search(r'[\d,]+\.?\d*', price_text)
             if price_match:
                 return f"Price: ${price_match.group()}"
-        
+
         return "Price not found"
 
 def monitor_product_price():
     # Setup SMS notifications
     sms_notifier = create_notifier_from_env()
-    
+
     # Create price watcher (example CSS selector - adjust for actual site)
     watcher = PriceWatcher(
         price_selector=".price-current",
         sms_notifier=sms_notifier
     )
-    
+
     product_url = "https://example-store.com/product/123"
-    
+
     try:
         changed, diff = watcher.check_url(product_url)
         if changed:
@@ -298,22 +298,22 @@ class NewsFeedWatcher(URLWatcher):
     def _fetch_url_content(self, url):
         """Parse RSS/Atom feed and return formatted content"""
         feed = feedparser.parse(url)
-        
+
         if feed.bozo:
             raise Exception(f"Invalid feed: {feed.bozo_exception}")
-        
+
         content_lines = [f"Feed: {feed.feed.get('title', 'Unknown')}"]
-        
+
         # Get latest 10 articles
         for entry in feed.entries[:10]:
             title = entry.get('title', 'No title')
             link = entry.get('link', '')
             published = entry.get('published', 'Unknown date')
-            
+
             content_lines.append(f"- {title} ({published})")
             if link:
                 content_lines.append(f"  {link}")
-        
+
         return '\n'.join(content_lines)
 
 def monitor_news():
@@ -322,9 +322,9 @@ def monitor_news():
         "https://rss.cnn.com/rss/edition.rss",
         "https://feeds.npr.org/1001/rss.xml"
     ]
-    
+
     watcher = NewsFeedWatcher()
-    
+
     for feed_url in feeds:
         try:
             changed, diff = watcher.check_url(feed_url)
@@ -355,10 +355,10 @@ class APIWatcher(URLWatcher):
     def _fetch_url_content(self, url):
         """Format JSON responses for better diff viewing"""
         import requests
-        
+
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        
+
         try:
             # Pretty-print JSON for better diffs
             json_data = response.json()
@@ -373,9 +373,9 @@ def monitor_api_endpoints():
         "https://httpbin.org/uuid",
         "https://api.coindesk.com/v1/bpi/currentprice.json"
     ]
-    
+
     watcher = APIWatcher()
-    
+
     for endpoint in api_endpoints:
         try:
             changed, diff = watcher.check_url(endpoint)
@@ -410,7 +410,7 @@ from url_watcher import URLWatcher
 class SlackNotifier:
     def __init__(self, webhook_url):
         self.webhook_url = webhook_url
-    
+
     def send_notification(self, url, message):
         """Send change notification to Slack"""
         payload = {
@@ -433,7 +433,7 @@ class SlackNotifier:
                 }
             ]
         }
-        
+
         try:
             response = requests.post(
                 self.webhook_url,
@@ -450,7 +450,7 @@ class SlackURLWatcher(URLWatcher):
     def __init__(self, slack_notifier, **kwargs):
         super().__init__(**kwargs)
         self.slack_notifier = slack_notifier
-    
+
     def check_url(self, url):
         changed, diff = super().check_url(url)
         if changed and self.slack_notifier:
@@ -461,10 +461,10 @@ class SlackURLWatcher(URLWatcher):
 if __name__ == "__main__":
     # Replace with your Slack webhook URL
     SLACK_WEBHOOK = "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-    
+
     slack_notifier = SlackNotifier(SLACK_WEBHOOK)
     watcher = SlackURLWatcher(slack_notifier=slack_notifier)
-    
+
     # Monitor with Slack notifications
     watcher.watch_continuously("https://httpbin.org/uuid")
 ```
@@ -487,12 +487,12 @@ class DatabaseLogger:
     def __init__(self, db_path="url_changes.db"):
         self.db_path = db_path
         self._init_db()
-    
+
     def _init_db(self):
         """Initialize database schema"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS url_changes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -502,42 +502,42 @@ class DatabaseLogger:
                 content_hash TEXT
             )
         """)
-        
+
         conn.commit()
         conn.close()
-    
+
     def log_change(self, url, diff_content, content_hash):
         """Log a URL change to database"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             INSERT INTO url_changes (url, changed_at, diff_content, content_hash)
             VALUES (?, ?, ?, ?)
         """, (url, datetime.now(), diff_content, content_hash))
-        
+
         conn.commit()
         conn.close()
-    
+
     def get_changes(self, url=None, limit=10):
         """Get recent changes from database"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         if url:
             cursor.execute("""
-                SELECT * FROM url_changes 
-                WHERE url = ? 
-                ORDER BY changed_at DESC 
+                SELECT * FROM url_changes
+                WHERE url = ?
+                ORDER BY changed_at DESC
                 LIMIT ?
             """, (url, limit))
         else:
             cursor.execute("""
-                SELECT * FROM url_changes 
-                ORDER BY changed_at DESC 
+                SELECT * FROM url_changes
+                ORDER BY changed_at DESC
                 LIMIT ?
             """, (limit,))
-        
+
         results = cursor.fetchall()
         conn.close()
         return results
@@ -546,7 +546,7 @@ class DatabaseURLWatcher(URLWatcher):
     def __init__(self, db_logger, **kwargs):
         super().__init__(**kwargs)
         self.db_logger = db_logger
-    
+
     def check_url(self, url):
         changed, diff = super().check_url(url)
         if changed and self.db_logger:
@@ -560,10 +560,10 @@ if __name__ == "__main__":
     # Setup database logging
     db_logger = DatabaseLogger()
     watcher = DatabaseURLWatcher(db_logger=db_logger)
-    
+
     # Monitor and log changes
     watcher.watch_continuously("https://httpbin.org/uuid")
-    
+
     # Query recent changes
     # recent_changes = db_logger.get_changes(limit=5)
     # for change in recent_changes:
@@ -588,7 +588,7 @@ class WebhookNotifier:
     def __init__(self, webhook_url, secret=None):
         self.webhook_url = webhook_url
         self.secret = secret
-    
+
     def send_webhook(self, url, diff_content):
         """Send webhook notification"""
         payload = {
@@ -601,14 +601,14 @@ class WebhookNotifier:
                 "diff_length": len(diff_content) if diff_content else 0
             }
         }
-        
+
         headers = {'Content-Type': 'application/json'}
-        
+
         # Add HMAC signature if secret provided
         if self.secret:
             import hmac
             import hashlib
-            
+
             payload_bytes = json.dumps(payload).encode('utf-8')
             signature = hmac.new(
                 self.secret.encode('utf-8'),
@@ -616,7 +616,7 @@ class WebhookNotifier:
                 hashlib.sha256
             ).hexdigest()
             headers['X-Signature'] = f"sha256={signature}"
-        
+
         try:
             response = requests.post(
                 self.webhook_url,
@@ -624,7 +624,7 @@ class WebhookNotifier:
                 headers=headers,
                 timeout=10
             )
-            
+
             print(f"Webhook sent: {response.status_code}")
             return response.status_code < 400
         except Exception as e:
@@ -635,7 +635,7 @@ class WebhookURLWatcher(URLWatcher):
     def __init__(self, webhook_notifier, **kwargs):
         super().__init__(**kwargs)
         self.webhook_notifier = webhook_notifier
-    
+
     def check_url(self, url):
         changed, diff = super().check_url(url)
         if changed and self.webhook_notifier:
@@ -649,7 +649,7 @@ if __name__ == "__main__":
         webhook_url="https://your-server.com/webhook",
         secret="your-webhook-secret"
     )
-    
+
     watcher = WebhookURLWatcher(webhook_notifier=webhook_notifier)
     watcher.watch_continuously("https://httpbin.org/uuid")
 ```
@@ -675,7 +675,7 @@ class RateLimitedWatcher(URLWatcher):
         super().__init__(**kwargs)
         self.max_retries = max_retries
         self.base_delay = base_delay
-    
+
     def _fetch_url_content(self, url):
         """Fetch with retry logic for rate limits"""
         for attempt in range(self.max_retries + 1):
@@ -683,17 +683,17 @@ class RateLimitedWatcher(URLWatcher):
                 response = requests.get(url, timeout=10, headers={
                     'User-Agent': 'URL-Watcher/1.0'
                 })
-                
+
                 if response.status_code == 429:  # Rate limited
                     if attempt < self.max_retries:
                         delay = self.base_delay * (2 ** attempt) + random.uniform(0, 1)
                         print(f"Rate limited, waiting {delay:.2f} seconds...")
                         time.sleep(delay)
                         continue
-                
+
                 response.raise_for_status()
                 return response.text
-                
+
             except requests.exceptions.RequestException as e:
                 if attempt < self.max_retries:
                     delay = self.base_delay * (2 ** attempt)
@@ -726,7 +726,7 @@ class AuthenticatedWatcher(URLWatcher):
         self.auth = auth
         self.cookies = cookies
         self.headers = headers or {}
-    
+
     def _fetch_url_content(self, url):
         """Fetch with authentication"""
         response = requests.get(
@@ -746,7 +746,7 @@ basic_auth_watcher = AuthenticatedWatcher(
     auth=HTTPBasicAuth('username', 'password')
 )
 
-# Digest Auth  
+# Digest Auth
 digest_auth_watcher = AuthenticatedWatcher(
     auth=HTTPDigestAuth('username', 'password')
 )
@@ -787,10 +787,10 @@ class HeaderOnlyWatcher(URLWatcher):
         """Use HEAD request to check only headers"""
         response = requests.head(url, timeout=10)
         response.raise_for_status()
-        
+
         # Create content from relevant headers
         content_parts = []
-        
+
         # Common headers that indicate file changes
         relevant_headers = [
             'Last-Modified',
@@ -798,11 +798,11 @@ class HeaderOnlyWatcher(URLWatcher):
             'Content-Length',
             'Content-Type'
         ]
-        
+
         for header in relevant_headers:
             if header in response.headers:
                 content_parts.append(f"{header}: {response.headers[header]}")
-        
+
         return '\n'.join(content_parts)
 
 # Usage for monitoring large files
@@ -856,43 +856,43 @@ class ResilientWatcher(URLWatcher):
         self.max_consecutive_failures = max_consecutive_failures
         self.failure_backoff = failure_backoff
         self.last_failure_time = {}
-    
+
     def check_url_with_recovery(self, url):
         """Check URL with error recovery logic"""
         now = datetime.now()
-        
+
         # Check if we're in backoff period
         if url in self.last_failure_time:
             time_since_failure = now - self.last_failure_time[url]
             if time_since_failure < timedelta(seconds=self.failure_backoff):
                 logging.info(f"Skipping {url} - in backoff period")
                 return False, None
-        
+
         try:
             changed, diff = self.check_url(url)
-            
+
             # Reset failure count on success
             if url in self.failure_counts:
                 del self.failure_counts[url]
             if url in self.last_failure_time:
                 del self.last_failure_time[url]
-            
+
             logging.info(f"Successfully checked {url} - Changed: {changed}")
             return changed, diff
-            
+
         except Exception as e:
             # Increment failure count
             self.failure_counts[url] = self.failure_counts.get(url, 0) + 1
             self.last_failure_time[url] = now
-            
+
             failure_count = self.failure_counts[url]
             logging.error(f"Failed to check {url} ({failure_count} consecutive failures): {e}")
-            
+
             # Stop checking URL if too many failures
             if failure_count >= self.max_consecutive_failures:
                 logging.warning(f"Disabling {url} after {failure_count} consecutive failures")
                 return None, None  # Signal to remove from monitoring
-            
+
             return False, None
 
 def resilient_monitoring():
@@ -903,22 +903,22 @@ def resilient_monitoring():
         "https://invalid-domain-12345.com",  # This will fail
         "https://api.github.com/zen"
     ]
-    
+
     watcher = ResilientWatcher(
         max_consecutive_failures=3,
         failure_backoff=600  # 10 minutes
     )
-    
+
     active_urls = set(urls_to_monitor)
-    
+
     while active_urls:
         logging.info(f"Checking {len(active_urls)} active URLs")
-        
+
         urls_to_remove = []
-        
+
         for url in list(active_urls):
             result = watcher.check_url_with_recovery(url)
-            
+
             if result[0] is None:  # Signal to remove URL
                 urls_to_remove.append(url)
                 logging.warning(f"Removing {url} from monitoring")
@@ -926,15 +926,15 @@ def resilient_monitoring():
                 logging.info(f"Content changed: {url}")
                 if result[1]:
                     logging.info(f"Diff preview: {result[1][:200]}...")
-        
+
         # Remove failed URLs
         for url in urls_to_remove:
             active_urls.remove(url)
-        
+
         if not active_urls:
             logging.warning("No active URLs remaining")
             break
-        
+
         logging.info("Sleeping for 60 seconds...")
         time.sleep(60)
 

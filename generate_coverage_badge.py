@@ -3,15 +3,22 @@
 Generate a simple coverage badge for README
 """
 import os
-import subprocess
 import re
+import subprocess
 
 
 def get_current_coverage():
     """Get current coverage percentage"""
     try:
         result = subprocess.run(
-            ["python", "-m", "pytest", "--cov=.", "--cov-report=term-missing", "--quiet"],
+            [
+                "python",
+                "-m",
+                "pytest",
+                "--cov=.",
+                "--cov-report=term-missing",
+                "--quiet",
+            ],
             capture_output=True,
             text=True,
         )
