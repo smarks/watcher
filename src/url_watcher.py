@@ -17,13 +17,12 @@ from typing import Optional
 
 import requests
 
-from sms_notifier import SMSNotifier, create_notifier_from_env
+from clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
+from clicksend_sms_notifier import create_notifier_from_env
 
 
 class URLWatcher:
-    def __init__(
-        self, storage_file="url_cache.json", sms_notifier: Optional[SMSNotifier] = None
-    ):
+    def __init__(self, storage_file="url_cache.json", sms_notifier: Optional[SMSNotifier] = None):
         self.storage_file = storage_file
         self.cache = self._load_cache()
         self.sms_notifier = sms_notifier
@@ -150,10 +149,7 @@ class URLWatcher:
 
         try:
             while True:
-                print(
-                    f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-                    f"Checking URL..."
-                )
+                print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] " f"Checking URL...")
 
                 try:
                     changed, difference = self.check_url(url)
@@ -170,10 +166,22 @@ class URLWatcher:
                 except Exception as e:
                     print(f"Error during check: {e}")
 
-                # Wait for random interval
+                # Wait for random interval with countdown
                 wait_time = random.randint(min_interval, max_interval)
                 print(f"Next check in {wait_time} seconds...")
-                time.sleep(wait_time)
+
+                # Countdown timer - update every second
+                for remaining in range(wait_time, 0, -1):
+                    # Use \r to overwrite the same line
+                    minutes, seconds = divmod(remaining, 60)
+                    time_str = (
+                        f"{minutes:02d}:{seconds:02d}" if minutes > 0 else f"{seconds} seconds"
+                    )
+                    print(f"\rNext check in: {time_str}  ", end="", flush=True)
+                    time.sleep(1)
+
+                # Clear the countdown line before the next check
+                print("\r" + " " * 50 + "\r", end="")
 
         except KeyboardInterrupt:
             print("\n\nStopping continuous monitoring.")
@@ -194,7 +202,7 @@ def main():
         print("  With SMS:     python url_watcher.py <URL> --sms")
         print("  Both:         python url_watcher.py <URL> --continuous --sms")
         print("\nFor SMS notifications, set these environment variables:")
-        print("  SMS_PHONE_NUMBER (e.g., '+1234567890'), TEXTBELT_API_KEY")
+        print("  SMS_PHONE_NUMBER (e.g., '+1234567890'), CLICKSEND_USERNAME, CLICKSEND_API_KEY")
         sys.exit(1)
 
     url = sys.argv[1]
@@ -207,9 +215,7 @@ def main():
         if arg not in valid_args:
             # Check for common mistakes
             if arg.startswith("---") or arg.startswith("----"):
-                invalid_args.append(
-                    f"'{arg}' (did you mean '--continuous' or '--sms'?)"
-                )
+                invalid_args.append(f"'{arg}' (did you mean '--continuous' or '--sms'?)")
             elif arg in [
                 "continuous",
                 "-continuous",
@@ -238,7 +244,7 @@ def main():
         if not sms_notifier.is_configured():
             print("⚠️  SMS notifications requested but not properly configured")
             print(
-                "Set SMS_PHONE_NUMBER and TEXTBELT_API_KEY environment "
+                "Set SMS_PHONE_NUMBER, CLICKSEND_USERNAME, and CLICKSEND_API_KEY environment "
                 "variables or add to .env file"
             )
         else:

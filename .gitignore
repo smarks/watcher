@@ -1,18 +1,38 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.so
+.env
+
+# IDEs
 .idea/
 .vscode/
+
+# Package management
 *.egg-info/
-url_cache.json
-test_cache*.json
 venv/
+.venv/
+
+# Testing and coverage
 .coverage*
 htmlcov/
 .coverage_baseline.json
-export_env.sh
+.pytest_cache/
+.mypy_cache/
+
+# Cache files
+url_cache.json
+*_cache.json
+test_cache*.json
+
+# Environment files
 .env
 .env.local
+export_env.sh
+
+# OS files
+.DS_Store
+Thumbs.db

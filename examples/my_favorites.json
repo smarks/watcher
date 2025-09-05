@@ -1,0 +1,12 @@
+[
+  {
+    "url": "https://atwoodknives.blogspot.com",
+    "interval": 60,
+    "description": "Changes every request - good for testing"
+  },
+  {
+    "url": "http://localhost:3000",
+    "interval": 30,
+    "description": "Rarely changes - basic monitoring"
+  }
+]

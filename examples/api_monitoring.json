@@ -1,0 +1,17 @@
+[
+  {
+    "url": "https://api.github.com/repos/python/cpython/releases/latest",
+    "interval": 3600,
+    "description": "Python releases - check hourly"
+  },
+  {
+    "url": "https://api.github.com/repos/microsoft/vscode/releases/latest",
+    "interval": 7200,
+    "description": "VS Code releases - check every 2 hours"
+  },
+  {
+    "url": "https://httpstat.us/200",
+    "interval": 60,
+    "description": "Service health check - frequent monitoring"
+  }
+]

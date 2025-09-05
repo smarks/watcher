@@ -1,0 +1,22 @@
+[
+  {
+    "url": "https://news.ycombinator.com",
+    "interval": 900,
+    "description": "Hacker News - check every 15 minutes"
+  },
+  {
+    "url": "https://www.reddit.com/r/programming/.rss",
+    "interval": 1800,
+    "description": "Reddit Programming RSS - check every 30 minutes"
+  },
+  {
+    "url": "https://status.github.com/api/status.json",
+    "interval": 300,
+    "description": "GitHub status - check every 5 minutes"
+  },
+  {
+    "url": "https://www.google.com/search?q=site%3Aexample.com",
+    "interval": 86400,
+    "description": "SEO monitoring - daily check"
+  }
+]

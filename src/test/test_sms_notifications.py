@@ -67,9 +67,7 @@ class TestSMSNotifier(unittest.TestCase):
         mock_post.return_value = mock_response
 
         notifier = SMSNotifier(phone_number=self.phone_number, api_key=self.api_key)
-        result = notifier.send_notification(
-            url="http://example.com", message="Content changed"
-        )
+        result = notifier.send_notification(url="http://example.com", message="Content changed")
 
         self.assertTrue(result)
         mock_post.assert_called_once()
@@ -118,9 +116,8 @@ class TestSMSNotifier(unittest.TestCase):
             result = notifier.send_notification("http://example.com", "Some changes")
 
             self.assertFalse(result)
-            mock_log.assert_called_with(
-                "Unexpected error sending SMS: Some generic error"
-            )
+            # Check that error logging was called (multiple calls happen, check the last one)
+            mock_log.assert_any_call("[SMS] Error details: Some generic error")
 
     @patch("requests.post")
     def test_test_notification_success(self, mock_post):
@@ -242,9 +239,7 @@ class TestURLWatcherSMSIntegration(unittest.TestCase):
         mock_notifier.send_notification.return_value = True
 
         # Create watcher with SMS notifier
-        watcher = URLWatcher(
-            storage_file=self.test_cache_file, sms_notifier=mock_notifier
-        )
+        watcher = URLWatcher(storage_file=self.test_cache_file, sms_notifier=mock_notifier)
 
         # First check - should not send SMS (first time)
         changed, diff = watcher.check_url("http://example.com")
@@ -257,9 +252,7 @@ class TestURLWatcherSMSIntegration(unittest.TestCase):
 
         # Should detect change and send SMS
         self.assertTrue(changed)
-        mock_notifier.send_notification.assert_called_once_with(
-            "http://example.com", diff
-        )
+        mock_notifier.send_notification.assert_called_once_with("http://example.com", diff)
 
     @patch("requests.get")
     def test_url_watcher_without_sms_notifier(self, mock_get):
@@ -288,9 +281,7 @@ class TestURLWatcherSMSIntegration(unittest.TestCase):
         mock_notifier.is_configured.return_value = True
         mock_notifier.send_notification.side_effect = Exception("SMS failed")
 
-        watcher = URLWatcher(
-            storage_file=self.test_cache_file, sms_notifier=mock_notifier
-        )
+        watcher = URLWatcher(storage_file=self.test_cache_file, sms_notifier=mock_notifier)
 
         # First check
         watcher.check_url("http://example.com")

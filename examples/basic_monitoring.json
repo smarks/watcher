@@ -1,0 +1,12 @@
+[
+  {
+    "url": "https://httpbin.org/uuid",
+    "interval": 30,
+    "description": "Changes every request - good for testing"
+  },
+  {
+    "url": "https://example.com",
+    "interval": 300,
+    "description": "Rarely changes - basic monitoring"
+  }
+]
