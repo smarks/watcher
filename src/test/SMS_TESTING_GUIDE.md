@@ -21,6 +21,7 @@ This guide explains how to test your SMS notification setup.
 ## Running the Tests
 
 ### Option 1: Interactive Mode (Recommended)
+
 This mode prompts you before sending actual SMS messages:
 
 ```bash
@@ -28,12 +29,14 @@ python src/test/test_sms_integration.py --interactive
 ```
 
 **What it does:**
+
 - Checks your configuration
 - Asks for confirmation before sending SMS
 - Runs all three tests sequentially
 - Shows detailed results
 
 ### Option 2: Standard Test Mode
+
 Run with pytest (will skip if not configured):
 
 ```bash
@@ -41,11 +44,13 @@ pytest src/test/test_sms_integration.py -v
 ```
 
 **What it does:**
+
 - Skips tests if SMS is not configured
 - Runs tests if configuration is detected
 - Part of the normal test suite
 
 ### Option 3: Run Individual Tests
+
 Run specific tests directly:
 
 ```bash
@@ -62,18 +67,21 @@ pytest src/test/test_sms_integration.py::TestSMSIntegration::test_send_url_chang
 ## Test Descriptions
 
 ### Test 1: `test_verify_setup`
+
 - **Purpose:** Verify configuration without sending SMS
 - **What it does:** Checks that all credentials are set and valid
 - **Cost:** Free (no SMS sent)
 - **Use case:** Quick configuration check
 
 ### Test 2: `test_send_test_sms`
+
 - **Purpose:** Send an actual test SMS
 - **What it does:** Sends a simple test message via ClickSend
 - **Cost:** Uses 1 SMS credit
 - **Use case:** Verify end-to-end SMS delivery
 
 ### Test 3: `test_send_url_change_notification`
+
 - **Purpose:** Send a realistic URL change notification
 - **What it does:** Simulates a URL change and sends notification with diff
 - **Cost:** Uses 1 SMS credit
@@ -130,25 +138,31 @@ ok
 ## Troubleshooting
 
 ### Tests are skipped
+
 **Problem:** Tests show as "SKIPPED"
 
 **Solution:**
+
 - Make sure environment variables are set
 - Install clicksend-client: `pip install clicksend-client`
 - Verify credentials are correct
 
 ### Authentication errors
+
 **Problem:** "Invalid username or password"
 
 **Solution:**
+
 - Double-check CLICKSEND_USERNAME and CLICKSEND_API_KEY
 - Log into ClickSend dashboard to verify credentials
 - Ensure API key is not expired
 
 ### SMS not received
+
 **Problem:** Test passes but no SMS received
 
 **Solution:**
+
 - Check phone number format (must include country code, e.g., +1234567890)
 - Verify phone number in ClickSend dashboard
 - Check ClickSend account balance
@@ -169,6 +183,7 @@ pytest
 ## Cost Considerations
 
 Each test that actually sends an SMS uses ClickSend credits:
+
 - `test_verify_setup`: 0 credits (no SMS sent)
 - `test_send_test_sms`: 1 credit
 - `test_send_url_change_notification`: 1 credit
@@ -178,6 +193,7 @@ Running the full interactive suite: **2 SMS credits**
 ## Next Steps
 
 After verifying your SMS setup works:
+
 1. Use the verified configuration with `url_watcher.py --sms`
 2. Use with `multi_url_watcher.py` for multiple URL monitoring
 3. Set up continuous monitoring with confidence
