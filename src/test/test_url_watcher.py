@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import requests
 
-from url_watcher import URLWatcher
+from src.url_watcher import URLWatcher
 
 
 class TestURLWatcher(unittest.TestCase):
@@ -94,7 +94,7 @@ class TestURLWatcher(unittest.TestCase):
         hash3 = self.watcher._get_content_hash(different_content)
         self.assertNotEqual(hash1, hash3)
 
-    @patch("url_watcher.URLWatcher._fetch_url_content")
+    @patch("src.url_watcher.URLWatcher._fetch_url_content")
     def test_check_url_first_time(self, mock_fetch):
         """Test checking URL for the first time"""
         mock_fetch.return_value = "Initial content"
@@ -106,7 +106,7 @@ class TestURLWatcher(unittest.TestCase):
         self.assertIn(self.test_url, self.watcher.cache)
         self.assertEqual(self.watcher.cache[self.test_url]["content"], "Initial content")
 
-    @patch("url_watcher.URLWatcher._fetch_url_content")
+    @patch("src.url_watcher.URLWatcher._fetch_url_content")
     def test_check_url_no_change(self, mock_fetch):
         """Test checking URL with no content change"""
         content = "Same content"
@@ -121,7 +121,7 @@ class TestURLWatcher(unittest.TestCase):
         self.assertFalse(changed)
         self.assertIsNone(difference)
 
-    @patch("url_watcher.URLWatcher._fetch_url_content")
+    @patch("src.url_watcher.URLWatcher._fetch_url_content")
     def test_check_url_with_change(self, mock_fetch):
         """Test checking URL with content change"""
         # First check
@@ -196,7 +196,7 @@ class TestURLWatcher(unittest.TestCase):
 
         self.assertIn("Failed to fetch URL", str(context.exception))
 
-    @patch("url_watcher.URLWatcher._fetch_url_content")
+    @patch("src.url_watcher.URLWatcher._fetch_url_content")
     def test_cache_persistence(self, mock_fetch):
         """Test that cache persists between instances"""
         mock_fetch.return_value = "Persistent content"
@@ -317,7 +317,7 @@ class TestMainCLI(unittest.TestCase):
     @patch("builtins.print")
     def test_main_no_arguments(self, mock_print):
         """Test main with no arguments shows usage"""
-        from url_watcher import main
+        from src.url_watcher import main
 
         with self.assertRaises(SystemExit) as cm:
             main()
@@ -329,7 +329,7 @@ class TestMainCLI(unittest.TestCase):
     @patch("builtins.print")
     def test_main_too_many_arguments(self, mock_print):
         """Test main with too many arguments shows usage"""
-        from url_watcher import main
+        from src.url_watcher import main
 
         with self.assertRaises(SystemExit) as cm:
             main()
@@ -347,7 +347,7 @@ class TestMainCLI(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        from url_watcher import main
+        from src.url_watcher import main
 
         main()
 
@@ -373,10 +373,10 @@ class TestMainCLI(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        from url_watcher import main
+        from src.url_watcher import main
 
         # Patch URLWatcher to use our test cache file
-        with patch("url_watcher.URLWatcher") as mock_watcher_class:
+        with patch("src.url_watcher.URLWatcher") as mock_watcher_class:
             mock_watcher = Mock()
             mock_watcher.check_url.return_value = (True, "Some diff")
             mock_watcher_class.return_value = mock_watcher
@@ -389,9 +389,9 @@ class TestMainCLI(unittest.TestCase):
     @patch("builtins.print")
     def test_main_continuous_mode(self, mock_print):
         """Test main in continuous mode"""
-        from url_watcher import main
+        from src.url_watcher import main
 
-        with patch("url_watcher.URLWatcher") as mock_watcher_class:
+        with patch("src.url_watcher.URLWatcher") as mock_watcher_class:
             mock_watcher = Mock()
             mock_watcher_class.return_value = mock_watcher
 
@@ -403,14 +403,14 @@ class TestMainCLI(unittest.TestCase):
     @patch("builtins.print")
     def test_main_with_sms_not_configured(self, mock_print):
         """Test main with SMS but not configured"""
-        from url_watcher import main
+        from src.url_watcher import main
 
-        with patch("url_watcher.create_notifier_from_env") as mock_create_notifier:
+        with patch("src.url_watcher.create_notifier_from_env") as mock_create_notifier:
             mock_notifier = Mock()
             mock_notifier.is_configured.return_value = False
             mock_create_notifier.return_value = mock_notifier
 
-            with patch("url_watcher.URLWatcher") as mock_watcher_class:
+            with patch("src.url_watcher.URLWatcher") as mock_watcher_class:
                 mock_watcher = Mock()
                 mock_watcher.check_url.return_value = (False, "")
                 mock_watcher_class.return_value = mock_watcher
@@ -425,14 +425,14 @@ class TestMainCLI(unittest.TestCase):
     @patch("builtins.print")
     def test_main_with_sms_configured(self, mock_print):
         """Test main with SMS properly configured"""
-        from url_watcher import main
+        from src.url_watcher import main
 
-        with patch("url_watcher.create_notifier_from_env") as mock_create_notifier:
+        with patch("src.url_watcher.create_notifier_from_env") as mock_create_notifier:
             mock_notifier = Mock()
             mock_notifier.is_configured.return_value = True
             mock_create_notifier.return_value = mock_notifier
 
-            with patch("url_watcher.URLWatcher") as mock_watcher_class:
+            with patch("src.url_watcher.URLWatcher") as mock_watcher_class:
                 mock_watcher = Mock()
                 mock_watcher.check_url.return_value = (False, "")
                 mock_watcher_class.return_value = mock_watcher
@@ -445,9 +445,9 @@ class TestMainCLI(unittest.TestCase):
     @patch("builtins.print")
     def test_main_handles_exceptions(self, mock_print):
         """Test main handles exceptions and exits with error"""
-        from url_watcher import main
+        from src.url_watcher import main
 
-        with patch("url_watcher.URLWatcher") as mock_watcher_class:
+        with patch("src.url_watcher.URLWatcher") as mock_watcher_class:
             mock_watcher = Mock()
             mock_watcher.check_url.side_effect = Exception("Test error")
             mock_watcher_class.return_value = mock_watcher

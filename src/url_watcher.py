@@ -17,8 +17,8 @@ from typing import Optional
 
 import requests
 
-from clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
-from clicksend_sms_notifier import create_notifier_from_env
+from src.clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
+from src.clicksend_sms_notifier import create_notifier_from_env
 
 
 class URLWatcher:

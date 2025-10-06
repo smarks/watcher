@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch  # MagicMock unused
 
 import requests
 
-from multi_url_watcher import ResilientURLWatcher, load_urls_from_file
+from src.multi_url_watcher import ResilientURLWatcher, load_urls_from_file
 
 
 class TestResilientURLWatcher(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestResilientURLWatcher(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir)
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_successful_url_fetch(self, mock_get):
         """Test successful URL content fetching"""
         mock_response = Mock()
@@ -47,7 +47,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertEqual(content, "Test content")
         self.assertIsNone(error)
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_url_fetch_with_retry(self, mock_get):
         """Test URL fetching with retry on failure"""
         # First attempt fails, second succeeds
@@ -69,7 +69,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(mock_get.call_count, 2)
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_url_fetch_permanent_failure(self, mock_get):
         """Test URL fetching with permanent failure"""
         mock_get.side_effect = requests.exceptions.ConnectionError("Permanent failure")
@@ -81,7 +81,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertIn("Connection failed", error)
         self.assertEqual(mock_get.call_count, 2)  # max_retries = 2
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_first_time_check(self, mock_get):
         """Test checking URL for the first time"""
         mock_response = Mock()
@@ -95,7 +95,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertIn("First time checking", diff)
         self.assertTrue(reachable)
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_content_change_detection(self, mock_get):
         """Test detection of content changes"""
         url = "http://example.com"
@@ -121,7 +121,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertIn("Changed content", diff)
         self.assertTrue(reachable)
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_no_change_detection(self, mock_get):
         """Test when content doesn't change"""
         url = "http://example.com"
@@ -142,7 +142,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertIsNone(diff)
         self.assertTrue(reachable)
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_sms_notification_on_change(self, mock_get):
         """Test SMS notification is sent when content changes"""
         url = "http://example.com"
@@ -172,7 +172,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertEqual(args[0], url)  # URL
         self.assertIn("Original content", args[1])  # Diff
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_unreachable_url_handling(self, mock_get):
         """Test handling of unreachable URLs"""
         url = "http://unreachable.com"
@@ -185,7 +185,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertIn("Connection failed", diff)
         self.assertIn(url, self.watcher.unreachable_urls)
 
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_recovery_from_unreachable(self, mock_get):
         """Test recovery notification when URL comes back online"""
         url = "http://recovering.com"
@@ -256,7 +256,7 @@ class TestResilientURLWatcher(unittest.TestCase):
         self.assertIn(url, diff)
 
     @patch("time.sleep")  # Mock sleep to speed up tests
-    @patch("multi_url_watcher.requests.Session.get")
+    @patch("src.multi_url_watcher.requests.Session.get")
     def test_check_and_report_success(self, mock_get, mock_sleep):
         """Test _check_and_report method with successful check"""
         mock_response = Mock()

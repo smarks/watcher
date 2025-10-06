@@ -8,7 +8,7 @@ import time
 
 import requests
 
-from url_watcher import URLWatcher
+from src.url_watcher import URLWatcher
 
 
 def test_local_server():
