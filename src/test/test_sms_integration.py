@@ -7,10 +7,9 @@ Run this manually to verify your SMS configuration works
 import os
 import sys
 import unittest
-from datetime import datetime
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 try:
     from src.clicksend_sms_notifier import CLICKSEND_AVAILABLE, create_notifier_from_env
@@ -44,15 +43,17 @@ class TestSMSIntegration(unittest.TestCase):
         if self.skip_reason:
             self.skipTest(self.skip_reason)
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("SMS CONFIGURATION CHECK")
-        print("="*70)
+        print("=" * 70)
 
         # Check configuration
         is_configured = self.notifier.is_configured()
         print(f"\n✓ Phone Number: {self.notifier.phone_number}")
         print(f"✓ Username: {self.notifier.username}")
-        print(f"✓ API Key: {'*' * len(self.notifier.api_key) if self.notifier.api_key else 'Not set'}")
+        print(
+            f"✓ API Key: {'*' * len(self.notifier.api_key) if self.notifier.api_key else 'Not set'}"
+        )
         print(f"✓ Source: {self.notifier.source}")
         print(f"✓ Library Available: {CLICKSEND_AVAILABLE}")
         print(f"✓ Configuration Valid: {is_configured}")
@@ -65,9 +66,9 @@ class TestSMSIntegration(unittest.TestCase):
         if self.skip_reason:
             self.skipTest(self.skip_reason)
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("SENDING TEST SMS")
-        print("="*70)
+        print("=" * 70)
         print(f"\nSending test SMS to: {self.notifier.phone_number}")
         print(f"Source: {self.notifier.source}")
 
@@ -75,9 +76,9 @@ class TestSMSIntegration(unittest.TestCase):
         result = self.notifier.test_notification()
 
         # Display results
-        print("\n" + "-"*70)
+        print("\n" + "-" * 70)
         print("RESULT:")
-        print("-"*70)
+        print("-" * 70)
 
         if result["success"]:
             print("✅ SUCCESS! Test SMS sent successfully")
@@ -92,9 +93,12 @@ class TestSMSIntegration(unittest.TestCase):
             if "details" in result:
                 print(f"   Details: {result['details']}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
 
-        self.assertTrue(result["success"], f"Test SMS should be sent successfully: {result.get('error', 'Unknown error')}")
+        self.assertTrue(
+            result["success"],
+            f"Test SMS should be sent successfully: {result.get('error', 'Unknown error')}",
+        )
         print("\n✅ Check your phone for the test message!\n")
 
     def test_send_url_change_notification(self):
@@ -102,9 +106,9 @@ class TestSMSIntegration(unittest.TestCase):
         if self.skip_reason:
             self.skipTest(self.skip_reason)
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("SENDING URL CHANGE NOTIFICATION")
-        print("="*70)
+        print("=" * 70)
 
         # Simulate a URL change notification
         test_url = "https://example.com/test-page"
@@ -122,16 +126,16 @@ class TestSMSIntegration(unittest.TestCase):
         # Send notification
         success = self.notifier.send_notification(test_url, test_diff)
 
-        print("\n" + "-"*70)
+        print("\n" + "-" * 70)
         print("RESULT:")
-        print("-"*70)
+        print("-" * 70)
 
         if success:
             print("✅ SUCCESS! URL change notification sent")
         else:
             print("❌ FAILED to send URL change notification")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
 
         self.assertTrue(success, "URL change notification should be sent successfully")
         print("\n✅ Check your phone for the URL change notification!\n")
@@ -139,9 +143,9 @@ class TestSMSIntegration(unittest.TestCase):
 
 def run_interactive_test():
     """Run tests interactively with user prompts"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("SMS INTEGRATION TEST SUITE")
-    print("="*70)
+    print("=" * 70)
     print("\nThis will actually send SMS messages to your configured number.")
     print("Make sure you have set the following environment variables:")
     print("  - SMS_PHONE_NUMBER")
@@ -162,21 +166,23 @@ def run_interactive_test():
         print("Please set the required environment variables.")
         return False
 
-    print(f"\n✓ Configuration detected:")
+    print("\n✓ Configuration detected:")
     print(f"  Phone: {notifier.phone_number}")
     print(f"  Username: {notifier.username}")
     print(f"  Source: {notifier.source}")
 
-    response = input("\n⚠️  Continue with SMS tests? This will send actual SMS messages. (yes/no): ")
+    response = input(
+        "\n⚠️  Continue with SMS tests? " "This will send actual SMS messages. (yes/no): "
+    )
 
     if response.lower() not in ["yes", "y"]:
         print("\nTest cancelled.")
         return False
 
     # Run the tests
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("RUNNING TESTS")
-    print("="*70)
+    print("=" * 70)
 
     loader = unittest.TestLoader()
     suite = loader.loadTestsFromTestCase(TestSMSIntegration)

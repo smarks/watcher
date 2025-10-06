@@ -254,7 +254,9 @@ class TestClickSendSMSNotifier(unittest.TestCase):
 
         self.assertFalse(result["success"])
         # Either "not configured" or "library not installed" is acceptable
-        self.assertTrue("not configured" in result["error"] or "library not installed" in result["error"])
+        self.assertTrue(
+            "not configured" in result["error"] or "library not installed" in result["error"]
+        )
         self.assertIn("details", result)
 
     @unittest.skipIf(CLICKSEND_AVAILABLE, "Test for when library is not available")
