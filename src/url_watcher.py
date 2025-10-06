@@ -17,8 +17,12 @@ from typing import Optional
 
 import requests
 
-from src.clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
-from src.clicksend_sms_notifier import create_notifier_from_env
+try:
+    from src.clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
+    from src.clicksend_sms_notifier import create_notifier_from_env
+except ImportError:
+    from clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
+    from clicksend_sms_notifier import create_notifier_from_env
 
 
 class URLWatcher:
@@ -42,7 +46,8 @@ class URLWatcher:
         with open(self.storage_file, "w") as f:
             json.dump(self.cache, f, indent=2)
 
-    def _fetch_url_content(self, url):
+    @staticmethod
+    def _fetch_url_content(url):
         """Fetch content from URL"""
         try:
             response = requests.get(url, timeout=10)
@@ -51,7 +56,8 @@ class URLWatcher:
         except requests.RequestException as e:
             raise Exception(f"Failed to fetch URL: {e}")
 
-    def _get_content_hash(self, content):
+    @staticmethod
+    def _get_content_hash(content):
         """Generate hash of content for quick comparison"""
         return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
@@ -114,7 +120,8 @@ class URLWatcher:
 
         return True, diff
 
-    def _generate_diff(self, old_content, new_content, url):
+    @staticmethod
+    def _generate_diff(old_content, new_content, url):
         """Generate human-readable difference between old and new content"""
         old_lines = old_content.splitlines(keepends=True)
         new_lines = new_content.splitlines(keepends=True)

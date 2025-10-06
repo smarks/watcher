@@ -95,7 +95,7 @@ class ClickSendSMSNotifier:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sms_body = "WEBSITE CHANGE DETECTED\n"
             sms_body += f"Time: {timestamp}\n"
-            sms_body += f"URL: {url}\n\n"
+            # sms_body += f"URL: {url}\n\n"
 
             # Include diff if provided, but limit length for SMS (160-1600 chars typical limit)
             if message and message.strip():
