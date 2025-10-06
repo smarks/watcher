@@ -20,12 +20,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
-try:
-    from src.clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
-    from src.clicksend_sms_notifier import create_notifier_from_env
-except ImportError:
-    from clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
-    from clicksend_sms_notifier import create_notifier_from_env
+from .clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
+from .clicksend_sms_notifier import create_notifier_from_env
 
 
 class ResilientURLWatcher:
