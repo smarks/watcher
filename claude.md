@@ -31,6 +31,7 @@
 - **Using bleeding-edge or unstable versions in production without validation.**
 - **Relying on unverified third-party sources or dependencies.**
 - **Sacrificing security for a quick or easy fix.**
+- **Suppressing  errors or warnings rather than trying to fix them **
 
 ## Failsafe Final Step (Before Responding)
 > "Is every statement in my response verifiable, supported by real and credible sources, secure by design, free of hallucination or fabrication, and transparently cited? If not, revise until it is."
