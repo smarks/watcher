@@ -94,6 +94,53 @@ class TestURLWatcher(unittest.TestCase):
         hash3 = self.watcher._get_content_hash(different_content)
         self.assertNotEqual(hash1, hash3)
 
+    def test_extract_text_content(self):
+        """Test HTML text extraction removes non-visible content"""
+        html_content = """
+        <html>
+            <head>
+                <title>Test Page</title>
+                <script>console.log('test');</script>
+                <style>body { color: red; }</style>
+            </head>
+            <body>
+                <h1>Main Heading</h1>
+                <p>This is visible text.</p>
+                <script>alert('hidden');</script>
+                <div style="display:none">Hidden div</div>
+                <p>Another paragraph.</p>
+            </body>
+        </html>
+        """
+        extracted = self.watcher._extract_text_content(html_content)
+
+        # Should contain visible text
+        self.assertIn("Test Page", extracted)
+        self.assertIn("Main Heading", extracted)
+        self.assertIn("This is visible text.", extracted)
+        self.assertIn("Another paragraph.", extracted)
+
+        # Should NOT contain script or style content
+        self.assertNotIn("console.log", extracted)
+        self.assertNotIn("color: red", extracted)
+        self.assertNotIn("alert", extracted)
+
+        # Should NOT contain HTML tags
+        self.assertNotIn("<html>", extracted)
+        self.assertNotIn("<p>", extracted)
+        self.assertNotIn("</p>", extracted)
+
+    def test_extract_text_content_handles_malformed_html(self):
+        """Test text extraction gracefully handles malformed HTML"""
+        malformed_html = "<p>Unclosed paragraph<div>Nested without closing"
+
+        # Should not raise an exception
+        extracted = self.watcher._extract_text_content(malformed_html)
+
+        # Should still extract visible text
+        self.assertIn("Unclosed paragraph", extracted)
+        self.assertIn("Nested without closing", extracted)
+
     @patch("src.url_watcher.URLWatcher._fetch_url_content")
     def test_check_url_first_time(self, mock_fetch):
         """Test checking URL for the first time"""
@@ -104,7 +151,7 @@ class TestURLWatcher(unittest.TestCase):
         self.assertFalse(changed)
         self.assertIn("First time checking", difference)
         self.assertIn(self.test_url, self.watcher.cache)
-        self.assertEqual(self.watcher.cache[self.test_url]["content"], "Initial content")
+        self.assertEqual(self.watcher.cache[self.test_url]["text_content"], "Initial content")
 
     @patch("src.url_watcher.URLWatcher._fetch_url_content")
     def test_check_url_no_change(self, mock_fetch):
@@ -208,7 +255,7 @@ class TestURLWatcher(unittest.TestCase):
         # Second watcher instance should load the cache
         watcher2 = URLWatcher(storage_file=self.temp_file.name)
         self.assertIn(self.test_url, watcher2.cache)
-        self.assertEqual(watcher2.cache[self.test_url]["content"], "Persistent content")
+        self.assertEqual(watcher2.cache[self.test_url]["text_content"], "Persistent content")
 
     def test_multiline_content_diff(self):
         """Test diff generation with multiline content"""

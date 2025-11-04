@@ -16,6 +16,7 @@ from difflib import unified_diff
 from typing import Optional
 
 import requests
+from bs4 import BeautifulSoup
 
 from .clicksend_sms_notifier import ClickSendSMSNotifier as SMSNotifier
 from .clicksend_sms_notifier import create_notifier_from_env
@@ -57,20 +58,50 @@ class URLWatcher:
         """Generate hash of content for quick comparison"""
         return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _extract_text_content(html_content):
+        """
+        Extract human-readable text from HTML content.
+        Removes script, style, and other non-visible elements.
+        Returns cleaned, normalized text content.
+        """
+        try:
+            soup = BeautifulSoup(html_content, "lxml")
+
+            # Remove script and style elements
+            for script in soup(["script", "style", "noscript", "iframe"]):
+                script.decompose()
+
+            # Get text and normalize whitespace
+            text = soup.get_text(separator="\n", strip=True)
+
+            # Clean up multiple newlines and spaces
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            cleaned_text = "\n".join(lines)
+
+            return cleaned_text
+        except Exception as e:
+            # If parsing fails, fall back to raw content
+            logging.warning(f"Failed to parse HTML content: {e}. Using raw content.")
+            return html_content
+
     def check_url(self, url):
         """
-        Check URL for changes
+        Check URL for changes in human-readable text content
         Returns: (changed: bool, difference: str or None)
         """
-        # Fetch current content
-        current_content = self._fetch_url_content(url)
-        current_hash = self._get_content_hash(current_content)
+        # Fetch current HTML content
+        current_html = self._fetch_url_content(url)
+
+        # Extract human-readable text
+        current_text = self._extract_text_content(current_html)
+        current_hash = self._get_content_hash(current_text)
 
         # Check if we have previous content
         if url not in self.cache:
             # First time checking this URL
             self.cache[url] = {
-                "content": current_content,
+                "text_content": current_text,
                 "hash": current_hash,
                 "last_checked": datetime.now().isoformat(),
             }
@@ -80,7 +111,7 @@ class URLWatcher:
                 "First time checking this URL - no previous content to compare",
             )
 
-        previous_content = self.cache[url]["content"]
+        previous_text = self.cache[url].get("text_content", self.cache[url].get("content", ""))
         previous_hash = self.cache[url]["hash"]
 
         # Quick hash comparison
@@ -91,7 +122,7 @@ class URLWatcher:
             return False, None
 
         # Content has changed - generate difference
-        diff = self._generate_diff(previous_content, current_content, url)
+        diff = self._generate_diff(previous_text, current_text, url)
 
         # Send SMS notification if configured
         if self.sms_notifier and self.sms_notifier.is_configured():
@@ -106,9 +137,9 @@ class URLWatcher:
             except Exception as e:
                 logging.error(f"Unexpected error sending SMS notification for URL {url}: {e}")
 
-        # Update cache with new content
+        # Update cache with new text content
         self.cache[url] = {
-            "content": current_content,
+            "text_content": current_text,
             "hash": current_hash,
             "last_checked": datetime.now().isoformat(),
         }

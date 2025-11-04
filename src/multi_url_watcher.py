@@ -17,6 +17,7 @@ from difflib import unified_diff
 from typing import Dict, List, Optional, Tuple
 
 import requests
+from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -183,24 +184,53 @@ class ResilientURLWatcher:
         """Generate hash of content for quick comparison"""
         return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _extract_text_content(html_content):
+        """
+        Extract human-readable text from HTML content.
+        Removes script, style, and other non-visible elements.
+        Returns cleaned, normalized text content.
+        """
+        try:
+            soup = BeautifulSoup(html_content, "lxml")
+
+            # Remove script and style elements
+            for script in soup(["script", "style", "noscript", "iframe"]):
+                script.decompose()
+
+            # Get text and normalize whitespace
+            text = soup.get_text(separator="\n", strip=True)
+
+            # Clean up multiple newlines and spaces
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            cleaned_text = "\n".join(lines)
+
+            return cleaned_text
+        except Exception as e:
+            # If parsing fails, fall back to raw content
+            logging.warning(f"Failed to parse HTML content: {e}. Using raw content.")
+            return html_content
+
     def check_url(self, url: str) -> Tuple[bool, Optional[str], bool]:
         """
-        Check URL for changes
+        Check URL for changes in human-readable text content
         Returns: (changed: bool, difference: str or None, reachable: bool)
         """
-        # Fetch current content with retry
-        success, current_content, error = self._fetch_url_content_with_retry(url)
+        # Fetch current HTML content with retry
+        success, current_html, error = self._fetch_url_content_with_retry(url)
 
         if not success:
             return False, error, False
 
-        current_hash = self._get_content_hash(current_content)
+        # Extract human-readable text
+        current_text = self._extract_text_content(current_html)
+        current_hash = self._get_content_hash(current_text)
 
         # Check if we have previous content
         if url not in self.cache:
             # First time checking this URL
             self.cache[url] = {
-                "content": current_content,
+                "text_content": current_text,
                 "hash": current_hash,
                 "last_checked": datetime.now().isoformat(),
                 "check_count": 1,
@@ -208,7 +238,7 @@ class ResilientURLWatcher:
             self._save_cache()
             return False, "First time checking this URL - no previous content to compare", True
 
-        previous_content = self.cache[url]["content"]
+        previous_text = self.cache[url].get("text_content", self.cache[url].get("content", ""))
         previous_hash = self.cache[url]["hash"]
 
         # Quick hash comparison
@@ -225,7 +255,7 @@ class ResilientURLWatcher:
         logging.debug(
             f"Content Debug: Old hash: {previous_hash[:10]}..., New hash: {current_hash[:10]}..."
         )
-        diff = self._generate_diff(previous_content, current_content, url)
+        diff = self._generate_diff(previous_text, current_text, url)
 
         # Send SMS notification if configured
         logging.debug(f"SMS Debug: sms_notifier exists: {self.sms_notifier is not None}")
@@ -247,9 +277,9 @@ class ResilientURLWatcher:
         else:
             logging.debug("SMS Debug: SMS notifier not configured or not available")
 
-        # Update cache with new content
+        # Update cache with new text content
         self.cache[url] = {
-            "content": current_content,
+            "text_content": current_text,
             "hash": current_hash,
             "last_checked": datetime.now().isoformat(),
             "last_changed": datetime.now().isoformat(),
